@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Ícono NIC">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2BA8FF"/>
+      <stop offset="1" stop-color="#2ECC71"/>
+    </linearGradient>
+  </defs>
+  <!-- Fondo full-bleed (icono maskable) -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- Gota blanca dentro de la zona segura (~80%) -->
+  <g transform="translate(256 250) scale(2.05) translate(-64 -64)">
+    <path fill="#FFFFFF" d="M64 18 C64 18 100 58 100 84 a36 36 0 1 1 -72 0 C28 58 64 18 64 18 Z"/>
+    <g fill="#2ECC71">
+      <path d="M64 96 C64 86 64 80 64 72" stroke="#2ECC71" stroke-width="5" stroke-linecap="round" fill="none"/>
+      <path d="M64 76 C56 76 49 70 47 60 C57 60 64 66 64 76 Z"/>
+      <path d="M64 82 C72 82 79 76 81 66 C71 66 64 72 64 82 Z"/>
+    </g>
+  </g>
+</svg>

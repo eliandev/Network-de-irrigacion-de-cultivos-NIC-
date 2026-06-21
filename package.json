@@ -1,0 +1,16 @@
+{
+  "name": "nic-riego-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NIC (Network de Irrigacion de Cultivos) — PWA de control y monitoreo del sistema de riego automatizado (Fase 1 MVP).",
+  "type": "module",
+  "scripts": {
+    "dev": "node server/mock-esp8266.js",
+    "start": "node server/mock-esp8266.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "Equipo NIC",
+  "license": "UNLICENSED"
+}

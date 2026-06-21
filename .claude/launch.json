@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nic-mock",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server/mock-esp8266.js"],
+      "port": 8080
+    }
+  ]
+}

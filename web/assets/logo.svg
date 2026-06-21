@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Logo NIC">
+  <defs>
+    <linearGradient id="nicGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2BA8FF"/>
+      <stop offset="0.55" stop-color="#1E7FE0"/>
+      <stop offset="1" stop-color="#2ECC71"/>
+    </linearGradient>
+  </defs>
+  <!-- Gota de agua -->
+  <path fill="url(#nicGrad)"
+    d="M64 10 C64 10 102 54 102 82 a38 38 0 1 1 -76 0 C26 54 64 10 64 10 Z"/>
+  <!-- Brote: tallo + dos hojas -->
+  <g fill="#FFFFFF" opacity="0.95">
+    <path d="M64 96 C64 86 64 78 64 70" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <path d="M64 74 C56 74 49 68 47 58 C57 58 64 64 64 74 Z"/>
+    <path d="M64 80 C72 80 79 74 81 64 C71 64 64 70 64 80 Z"/>
+  </g>
+  <!-- Brillo de la gota -->
+  <ellipse cx="50" cy="62" rx="7" ry="12" fill="#FFFFFF" opacity="0.25"/>
+</svg>
