@@ -37,39 +37,40 @@ function setState(patch) {
   }
 }
 
-// --- Mapa de códigos WMO -> descripción (es) + emoji ------------------------
+// --- Mapa de códigos WMO -> descripción (es) + nombre de ícono outlined -----
+// El campo "icon" es la CLAVE de un ícono SVG (ver icons.js), no un emoji.
 const WMO = {
-  0: { desc: 'Despejado', icon: '☀️' },
-  1: { desc: 'Mayormente despejado', icon: '🌤️' },
-  2: { desc: 'Parcialmente nublado', icon: '⛅' },
-  3: { desc: 'Nublado', icon: '☁️' },
-  45: { desc: 'Niebla', icon: '🌫️' },
-  48: { desc: 'Niebla con escarcha', icon: '🌫️' },
-  51: { desc: 'Llovizna ligera', icon: '🌦️' },
-  53: { desc: 'Llovizna', icon: '🌦️' },
-  55: { desc: 'Llovizna intensa', icon: '🌦️' },
-  56: { desc: 'Llovizna helada', icon: '🌧️' },
-  57: { desc: 'Llovizna helada intensa', icon: '🌧️' },
-  61: { desc: 'Lluvia ligera', icon: '🌧️' },
-  63: { desc: 'Lluvia', icon: '🌧️' },
-  65: { desc: 'Lluvia intensa', icon: '🌧️' },
-  66: { desc: 'Lluvia helada', icon: '🌧️' },
-  67: { desc: 'Lluvia helada intensa', icon: '🌧️' },
-  71: { desc: 'Nieve ligera', icon: '🌨️' },
-  73: { desc: 'Nieve', icon: '🌨️' },
-  75: { desc: 'Nieve intensa', icon: '❄️' },
-  77: { desc: 'Granos de nieve', icon: '🌨️' },
-  80: { desc: 'Chubascos ligeros', icon: '🌦️' },
-  81: { desc: 'Chubascos', icon: '🌧️' },
-  82: { desc: 'Chubascos violentos', icon: '⛈️' },
-  85: { desc: 'Chubascos de nieve', icon: '🌨️' },
-  86: { desc: 'Chubascos de nieve intensos', icon: '❄️' },
-  95: { desc: 'Tormenta', icon: '⛈️' },
-  96: { desc: 'Tormenta con granizo', icon: '⛈️' },
-  99: { desc: 'Tormenta con granizo intenso', icon: '⛈️' },
+  0: { desc: 'Despejado', icon: 'sun' },
+  1: { desc: 'Mayormente despejado', icon: 'cloud-sun' },
+  2: { desc: 'Parcialmente nublado', icon: 'cloud-sun' },
+  3: { desc: 'Nublado', icon: 'cloud' },
+  45: { desc: 'Niebla', icon: 'cloud-fog' },
+  48: { desc: 'Niebla con escarcha', icon: 'cloud-fog' },
+  51: { desc: 'Llovizna ligera', icon: 'cloud-drizzle' },
+  53: { desc: 'Llovizna', icon: 'cloud-drizzle' },
+  55: { desc: 'Llovizna intensa', icon: 'cloud-drizzle' },
+  56: { desc: 'Llovizna helada', icon: 'cloud-drizzle' },
+  57: { desc: 'Llovizna helada intensa', icon: 'cloud-drizzle' },
+  61: { desc: 'Lluvia ligera', icon: 'cloud-rain' },
+  63: { desc: 'Lluvia', icon: 'cloud-rain' },
+  65: { desc: 'Lluvia intensa', icon: 'cloud-rain' },
+  66: { desc: 'Lluvia helada', icon: 'cloud-rain' },
+  67: { desc: 'Lluvia helada intensa', icon: 'cloud-rain' },
+  71: { desc: 'Nieve ligera', icon: 'cloud-snow' },
+  73: { desc: 'Nieve', icon: 'cloud-snow' },
+  75: { desc: 'Nieve intensa', icon: 'cloud-snow' },
+  77: { desc: 'Granos de nieve', icon: 'cloud-snow' },
+  80: { desc: 'Chubascos ligeros', icon: 'cloud-rain' },
+  81: { desc: 'Chubascos', icon: 'cloud-rain' },
+  82: { desc: 'Chubascos violentos', icon: 'cloud-lightning' },
+  85: { desc: 'Chubascos de nieve', icon: 'cloud-snow' },
+  86: { desc: 'Chubascos de nieve intensos', icon: 'cloud-snow' },
+  95: { desc: 'Tormenta', icon: 'cloud-lightning' },
+  96: { desc: 'Tormenta con granizo', icon: 'cloud-lightning' },
+  99: { desc: 'Tormenta con granizo intenso', icon: 'cloud-lightning' },
 };
 function describe(code) {
-  return WMO[code] || { desc: 'Condición desconocida', icon: '🌡️' };
+  return WMO[code] || { desc: 'Condición desconocida', icon: 'thermometer' };
 }
 
 // --- Caché en localStorage --------------------------------------------------

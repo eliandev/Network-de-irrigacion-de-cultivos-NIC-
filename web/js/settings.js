@@ -14,6 +14,8 @@ const DEFAULTS = Object.freeze({
   lang: 'es',
   criticalPct: DEFAULT_CRITICAL_PCT,
   manualDefaultMin: DEFAULT_MANUAL_MIN,
+  // Origen de los datos: 'auto' (real en LAN, demo fuera), 'on' (siempre demo), 'off' (siempre real).
+  demoMode: 'auto',
   // Clima por ubicacion (Open-Meteo). Requiere Internet; opcional.
   weather: {
     enabled: false,

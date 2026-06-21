@@ -24,6 +24,37 @@ No hay paso de *build* ni dependencias que instalar: es HTML/CSS/JS vanilla con 
 
 ---
 
+## ☁️ Deploy en Vercel (demo pública)
+
+La app está lista para desplegarse como **sitio estático** en Vercel — útil para mostrarla públicamente sin hardware.
+
+> **Importante:** Vercel sirve por HTTPS y **no puede correr el servidor WebSocket**; además, desde Internet no se llega al ESP de tu red local. Por eso la app incluye un **modo demostración**: un simulador del Arduino que corre en el **propio navegador** (`web/js/simulator.js`) y alimenta la UI con datos realistas (humedad, riego auto/manual con failsafe, ack…). En un host público se activa **automáticamente** (aparece el badge **DEMO** en la barra). En tu red local sigue usando el WebSocket real del ESP.
+
+### Pasos
+
+**Opción A — CLI**
+```bash
+npm i -g vercel
+vercel            # primera vez (responde las preguntas)
+vercel --prod     # a producción
+```
+
+**Opción B — desde GitHub**
+1. Sube este repo a GitHub.
+2. vercel.com → *Add New… → Project* → importa el repo.
+3. Framework preset: **Other**. Sin *build command*. Deploy.
+
+La configuración ya está en [`vercel.json`](vercel.json): sirve `web/` como raíz y fija cabeceras correctas (service worker sin caché, tipo MIME del manifest y de los `.js`).
+
+### Origen de los datos (Ajustes → Conexión)
+- **Automático** (por defecto): real en red local, demo en host público.
+- **Hardware real (ESP8266):** fuerza el WebSocket real.
+- **Demostración:** fuerza el simulador (para enseñar la UI en cualquier lugar).
+
+> El **clima** (Open-Meteo) sí funciona en Vercel: es la única función que usa Internet. El **GPS** del navegador también, porque Vercel sirve por HTTPS.
+
+---
+
 ## 🧱 Estructura del proyecto
 
 ```
@@ -37,15 +68,19 @@ NIC/
 │   ├── assets/              logo.svg, icon.svg (gota de agua con brote, azul→verde)
 │   ├── css/styles.css       Sistema de diseño (tema NIC)
 │   └── js/
-│       ├── app.js           Bootstrap + router + shell (pill de conexión, banner, badge)
+│       ├── app.js           Bootstrap + router + shell (pill, banner, badge DEMO)
 │       ├── store.js         Estado central reactivo (pub/sub)
 │       ├── protocol.js      Constantes, conversiones y (de)serialización JSON
-│       ├── ws-client.js     WebSocket: reconexión, keepalive, ack, máquina de estados
-│       ├── settings.js      Preferencias (host/IP, notificaciones…) en localStorage
+│       ├── ws-client.js     WebSocket (o simulador): reconexión, keepalive, ack, estados
+│       ├── simulator.js     "WebSocket falso" que simula el Arduino (modo demo / Vercel)
+│       ├── settings.js      Preferencias (host/IP, demo, clima…) en localStorage
 │       ├── history.js       Historial de humedad en IndexedDB (24 h)
 │       ├── alerts.js        Generación de alertas + notificaciones del navegador
+│       ├── weather.js       Clima por ubicación (Open-Meteo, sin API key)
+│       ├── icons.js         Set de íconos SVG outlined (sin emojis)
 │       ├── ui.js            Toasts + diálogo de confirmación
 │       └── screens/         dashboard · monitoreo · control · alertas · ajustes
+├── vercel.json              Config de despliegue estático en Vercel
 └── package.json
 ```
 

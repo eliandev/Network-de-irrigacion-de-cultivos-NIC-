@@ -12,6 +12,7 @@
 import { store } from '../store.js';
 import { alerts } from '../alerts.js';
 import { confirmDialog, escapeHtml } from '../ui.js';
+import { icon } from '../icons.js';
 
 let unsub = null;
 let mounted = false;   // guard de vida para callbacks async
@@ -33,7 +34,7 @@ export function mount(root) {
       </p>
       <div class="btn-row mt">
         <button type="button" class="btn btn--primary" id="al-enable" hidden>
-          🔔 Activar notificaciones
+          ${icon('bell', { size: 16 })} Activar notificaciones
         </button>
       </div>
     </div>
@@ -45,10 +46,10 @@ export function mount(root) {
       </div>
       <div class="btn-row mt">
         <button type="button" class="btn btn--ghost btn--small" id="al-mark-read">
-          ✓ Marcar como leídas
+          ${icon('check', { size: 16 })} Marcar como leídas
         </button>
         <button type="button" class="btn btn--danger btn--small" id="al-clear">
-          🗑️ Limpiar
+          ${icon('trash', { size: 16 })} Limpiar
         </button>
       </div>
       <div id="al-list" class="mt"></div>
@@ -56,7 +57,7 @@ export function mount(root) {
 
     <div class="card is-soon">
       <div class="card__header">
-        <span class="card__title">💦 Nivel de agua y hardware avanzado</span>
+        <span class="card__title">${icon('waves', { size: 18 })} Nivel de agua y hardware avanzado</span>
         <span class="badge-soon">Próximamente</span>
       </div>
       <p class="soon-note">
@@ -119,7 +120,7 @@ function render(root) {
   const chipEl = root.querySelector('#al-perm-chip');
   const enableBtn = root.querySelector('#al-enable');
   const pd = permDescriptor(perm);
-  chipEl.innerHTML = `<span class="chip ${pd.chip}"><span aria-hidden="true">${pd.icon}</span> ${escapeHtml(pd.label)}</span>`;
+  chipEl.innerHTML = `<span class="chip ${pd.chip}">${icon(pd.icon, { size: 14 })} ${escapeHtml(pd.label)}</span>`;
   // El boton solo tiene sentido cuando aun se puede pedir permiso.
   enableBtn.hidden = !(perm === 'default' || perm === 'denied');
 
@@ -130,7 +131,7 @@ function render(root) {
   // --- Lista de alertas ---
   const listEl = root.querySelector('#al-list');
   if (list.length === 0) {
-    listEl.innerHTML = `<p class="empty-state">Todo en orden, sin alertas por ahora 🎉</p>`;
+    listEl.innerHTML = `<p class="empty-state">Todo en orden, sin alertas por ahora.</p>`;
   } else {
     listEl.innerHTML = `<div class="list">${list.map(alertRow).join('')}</div>`;
   }
@@ -140,25 +141,27 @@ function render(root) {
 function permDescriptor(perm) {
   switch (perm) {
     case 'granted':
-      return { chip: 'chip--ok', icon: '🔔', label: 'Activadas' };
+      return { chip: 'chip--ok', icon: 'check-circle', label: 'Activadas' };
     case 'denied':
-      return { chip: 'chip--error', icon: '🔕', label: 'Bloqueadas en el navegador' };
+      return { chip: 'chip--error', icon: 'bell-off', label: 'Bloqueadas en el navegador' };
     case 'unsupported':
-      return { chip: 'chip--warn', icon: '🚫', label: 'No disponibles en este navegador' };
+      return { chip: 'chip--warn', icon: 'ban', label: 'No disponibles en este navegador' };
     case 'default':
     default:
-      return { chip: 'chip--info', icon: '🔔', label: 'Sin activar' };
+      return { chip: 'chip--info', icon: 'bell', label: 'Sin activar' };
   }
 }
 
 /** Renderiza una fila de alerta del historial. */
 function alertRow(a) {
   const severity = a.severity === 'critico' ? 'critico' : 'aviso';
-  const icon = severity === 'critico' ? '⛔' : '⚠️';
+  const ic = severity === 'critico'
+    ? icon('octagon-alert', { size: 20 })
+    : icon('triangle-alert', { size: 20 });
   const unread = !a.read ? ' is-unread' : '';
   return `
     <div class="alert-item alert-item--${severity}${unread}">
-      <span class="alert-item__icon" aria-hidden="true">${icon}</span>
+      <span class="alert-item__icon">${ic}</span>
       <div class="alert-item__body">
         <div class="alert-item__title">${escapeHtml(a.title)}</div>
         <div class="alert-item__msg">${escapeHtml(a.message)}</div>

@@ -13,6 +13,7 @@ const initialState = {
   link: LINK.UNKNOWN,            // enlace serial ESP <-> Arduino
   reconnectAttempts: 0,
   lastTelemetryTs: 0,            // epoch(ms) de la ultima telemetria recibida
+  demo: false,                   // true => datos simulados en navegador (sin hardware)
 
   // Telemetria (ultimo valor conocido)
   telemetry: null,               // { raw, pct, pump, mode, threshold, manualRemaining, ts }

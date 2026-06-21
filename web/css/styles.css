@@ -57,6 +57,9 @@
    elementos marcados con hidden seguirían visibles. */
 [hidden] { display: none !important; }
 
+/* Íconos SVG outlined (line-icons). Heredan el color del contenedor. */
+.icon { display: inline-block; vertical-align: middle; flex: none; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -124,6 +127,14 @@ button { font: inherit; }
   background: var(--surface);
   white-space: nowrap;
 }
+.topbar__status { display: inline-flex; align-items: center; gap: 8px; }
+.demo-badge {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+  padding: 4px 9px; border-radius: var(--radius-pill);
+  color: var(--warn); background: var(--warn-bg);
+  border: 1px solid rgba(241,181,61,0.45);
+}
+
 .conn-pill--ok { color: var(--ok); border-color: rgba(46,204,113,0.4); background: var(--ok-bg); }
 .conn-pill--warn { color: var(--warn); border-color: rgba(241,181,61,0.4); background: var(--warn-bg); }
 .conn-pill--error { color: var(--error); border-color: rgba(239,91,107,0.4); background: var(--error-bg); }
@@ -195,7 +206,7 @@ button { font: inherit; }
   padding: 8px 4px;
   transition: color 0.15s;
 }
-.tab__icon { font-size: 20px; line-height: 1; }
+.tab__icon { display: flex; align-items: center; justify-content: center; line-height: 1; }
 .tab__label { font-size: 11px; font-weight: 600; }
 .tab.is-active { color: var(--brand-blue); }
 .tab.is-active::before {
@@ -240,7 +251,8 @@ button { font: inherit; }
   gap: 10px;
   margin-bottom: 12px;
 }
-.card__title { font-size: 15px; color: var(--text-soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.card__title { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text-soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.card__title .icon { color: var(--brand-blue); }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
 
@@ -282,6 +294,20 @@ button { font: inherit; }
 .gauge__value { font-size: 40px; font-weight: 800; line-height: 1; }
 .gauge__unit { font-size: 18px; font-weight: 700; color: var(--text-soft); }
 .gauge__label { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+/* -------------------------------------------------------------------- Clima */
+.weather { display: flex; flex-direction: column; gap: 14px; }
+.weather__main { display: flex; align-items: center; gap: 16px; }
+.weather__icon { display: flex; align-items: center; line-height: 1; color: var(--brand-blue); }
+.weather__temp { font-size: 34px; font-weight: 800; line-height: 1.1; }
+.weather__desc { color: var(--text-soft); font-size: 14px; }
+.weather__meta { display: flex; flex-direction: column; min-width: 0; }
+.weather__foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+@media (min-width: 480px) {
+  .weather { flex-direction: row; align-items: stretch; }
+  .weather__main { flex: 1; }
+  .weather__meta { flex: 1.2; }
+}
 
 /* --------------------------------------------------------------- Stat rows */
 .stat { display: flex; flex-direction: column; gap: 2px; }
@@ -444,7 +470,9 @@ input::placeholder { color: var(--text-dim); }
 .alert-item--critico { border-left-color: var(--error); }
 .alert-item--aviso { border-left-color: var(--warn); }
 .alert-item.is-unread { background: var(--surface-2); }
-.alert-item__icon { font-size: 20px; flex: none; }
+.alert-item__icon { display: flex; align-items: center; flex: none; color: var(--text-dim); }
+.alert-item--critico .alert-item__icon { color: var(--error); }
+.alert-item--aviso .alert-item__icon { color: var(--warn); }
 .alert-item__body { flex: 1; min-width: 0; }
 .alert-item__title { font-weight: 700; }
 .alert-item__msg { font-size: 13.5px; color: var(--text-soft); }

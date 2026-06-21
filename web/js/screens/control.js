@@ -21,6 +21,7 @@ import {
   thresholdAdcToPct, clampAdc,
 } from '../protocol.js';
 import { toast, confirmDialog, escapeHtml } from '../ui.js';
+import { icon } from '../icons.js';
 
 let unsub = null;
 let timer = null;          // setInterval de 1s solo para animar el countdown
@@ -54,7 +55,7 @@ export function mount(root) {
     <!-- 1) Riego manual ON/OFF + duración -->
     <div class="card">
       <div class="card__header">
-        <span class="card__title">💧 Riego manual</span>
+        <span class="card__title">${icon('droplet', { size: 18 })} Riego manual</span>
         <span id="ctrl-pump-chip"></span>
       </div>
 
@@ -102,7 +103,7 @@ export function mount(root) {
     <!-- 5) Programación de horarios (próximamente) -->
     <div class="card is-soon">
       <div class="card__header">
-        <span class="card__title">⏰ Programación de horarios</span>
+        <span class="card__title">${icon('clock', { size: 18 })} Programación de horarios</span>
         <span class="badge-soon">Próximamente</span>
       </div>
       <p class="soon-note">Podrás programar riegos por hora y día en una próxima fase.</p>
@@ -296,7 +297,7 @@ function render(root) {
     warnEl.innerHTML = `
       <div class="card">
         <div class="kv">
-          <span class="kv__k">⚠️ Sin conexión con el dispositivo</span>
+          <span class="kv__k">${icon('triangle-alert', { size: 15 })} Sin conexión con el dispositivo</span>
           <span class="kv__v"><span class="chip chip--warn">Controles bloqueados</span></span>
         </div>
         <p class="soon-note">Los controles se reactivarán al recuperar la conexión.</p>
@@ -310,8 +311,8 @@ function render(root) {
   const chipEl = root.querySelector('#ctrl-pump-chip');
   chipEl.innerHTML = t
     ? (pumpOn
-        ? '<span class="chip chip--ok">● Encendida</span>'
-        : '<span class="chip">○ Apagada</span>')
+        ? `<span class="chip chip--ok">${icon('power', { size: 15 })} Encendida</span>`
+        : `<span class="chip">${icon('power', { size: 15 })} Apagada</span>`)
     : '';
 
   const minInput = root.querySelector('#ctrl-manual-min');

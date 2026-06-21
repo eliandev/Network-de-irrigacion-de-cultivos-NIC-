@@ -12,8 +12,10 @@
 import { store } from '../store.js';
 import { settings } from '../settings.js';
 import { ws } from '../ws-client.js';
+import { weather } from '../weather.js';
 import { CONN, LINK } from '../protocol.js';
 import { toast, confirmDialog, escapeHtml } from '../ui.js';
+import { icon } from '../icons.js';
 
 let unsub = null;
 let mounted = false;   // guard de vida para callbacks async
@@ -40,6 +42,15 @@ export function mount(root) {
         <button type="button" class="btn btn--ghost" id="set-test">Probar conexión</button>
         <button type="button" class="btn btn--primary" id="set-save">Guardar</button>
       </div>
+      <div class="field mt">
+        <label for="set-demo">Origen de los datos</label>
+        <select id="set-demo">
+          <option value="auto">Automático (real en red local · demo fuera)</option>
+          <option value="off">Hardware real (ESP8266)</option>
+          <option value="on">Demostración (datos simulados)</option>
+        </select>
+        <span class="hint">En un hosting público (p. ej. Vercel) se usa demostración automáticamente.</span>
+      </div>
       <div class="kv mt">
         <span class="kv__k">URL WebSocket efectiva</span>
         <span class="kv__v small" id="set-wsurl">—</span>
@@ -65,6 +76,32 @@ export function mount(root) {
                inputmode="numeric" value="${escapeHtml(String(cfg.criticalPct))}" />
         <span class="hint">Por debajo de este valor se considera estado crítico.</span>
       </div>
+    </div>
+
+    <!-- 2b) Clima y ubicación -->
+    <div class="card">
+      <div class="card__header"><span class="card__title">Clima y ubicación</span></div>
+      <label class="switch" for="set-weather-enabled">
+        <input type="checkbox" id="set-weather-enabled" />
+        <span class="switch__track" aria-hidden="true"></span>
+        <span class="switch__label">Mostrar el clima de mi ubicación</span>
+      </label>
+      <div class="kv mt"><span class="kv__k">Ubicación actual</span><span class="kv__v" id="set-weather-loc">—</span></div>
+      <div class="btn-row mt">
+        <button type="button" class="btn btn--ghost" id="set-weather-geo">${icon('map-pin', { size: 16 })} Usar mi ubicación (GPS)</button>
+      </div>
+      <div class="field mt">
+        <label for="set-weather-city">Buscar por ciudad</label>
+        <input type="text" id="set-weather-city" inputmode="text" autocomplete="off"
+               spellcheck="false" placeholder="Ej. San Salvador" />
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn--primary" id="set-weather-search">Buscar ciudad</button>
+      </div>
+      <p class="hint mt">
+        El clima usa Internet (Open-Meteo, sin clave). El GPS del navegador requiere
+        https o localhost; si no funciona, usa la búsqueda por ciudad.
+      </p>
     </div>
 
     <!-- 3) Unidades e idioma -->
@@ -131,6 +168,13 @@ export function mount(root) {
     }
   });
 
+  // 1) Origen de los datos (real / demo / auto): reconectar al cambiar.
+  root.querySelector('#set-demo').addEventListener('change', (e) => {
+    settings.patch({ demoMode: e.target.value });
+    ws.reconnectNow();
+    toast('Origen de datos actualizado', { type: 'ok' });
+  });
+
   // 1) Conexión: guardar host y reconectar de inmediato.
   saveBtn.addEventListener('click', () => {
     const host = hostInput.value.trim();
@@ -156,6 +200,56 @@ export function mount(root) {
     criticalPct.value = String(v);
     settings.patch({ criticalPct: v });
   });
+
+  // 2b) Clima y ubicación.
+  const weatherEnabled = root.querySelector('#set-weather-enabled');
+  const weatherGeo = root.querySelector('#set-weather-geo');
+  const weatherCity = root.querySelector('#set-weather-city');
+  const weatherSearch = root.querySelector('#set-weather-search');
+
+  weatherEnabled.addEventListener('change', () => {
+    if (weatherEnabled.checked) {
+      settings.patch({ weather: { enabled: true } });
+      weather.init(); // reevalúa: refresca si hay ubicación, o queda "sin ubicación"
+    } else {
+      weather.disable();
+    }
+    syncWeather(root);
+  });
+
+  weatherGeo.addEventListener('click', async () => {
+    weatherGeo.disabled = true;
+    const prev = weatherGeo.innerHTML; // innerHTML para conservar el ícono SVG
+    weatherGeo.innerHTML = 'Localizando…';
+    try {
+      const res = await weather.useMyLocation();
+      if (!mounted) return;
+      toast(res.ok ? 'Ubicación detectada' : (res.message || 'No se pudo localizar'),
+        { type: res.ok ? 'ok' : 'error', duration: res.ok ? 3000 : 4500 });
+      syncWeather(root);
+    } finally {
+      if (mounted) { weatherGeo.disabled = false; weatherGeo.innerHTML = prev; }
+    }
+  });
+
+  const doCitySearch = async () => {
+    const q = weatherCity.value.trim();
+    if (!q) return;
+    weatherSearch.disabled = true;
+    const prev = weatherSearch.textContent;
+    weatherSearch.textContent = 'Buscando…';
+    try {
+      const res = await weather.setCity(q);
+      if (!mounted) return;
+      toast(res.ok ? `Ubicación: ${res.label}` : (res.message || 'No se pudo buscar'),
+        { type: res.ok ? 'ok' : 'error', duration: res.ok ? 3000 : 4500 });
+      syncWeather(root);
+    } finally {
+      if (mounted) { weatherSearch.disabled = false; weatherSearch.textContent = prev; }
+    }
+  };
+  weatherSearch.addEventListener('click', doCitySearch);
+  weatherCity.addEventListener('keydown', (e) => { if (e.key === 'Enter') doCitySearch(); });
 
   // 5) Restaurar valores por defecto (acción destructiva, pide confirmación).
   resetBtn.addEventListener('click', async () => {
@@ -196,6 +290,21 @@ function syncInputs(root) {
   root.querySelector('#set-notify-critical').checked = !!cfg.notify.critical;
   root.querySelector('#set-notify-connection').checked = !!cfg.notify.connection;
   root.querySelector('#set-critical-pct').value = String(cfg.criticalPct);
+  root.querySelector('#set-demo').value = cfg.demoMode || 'auto';
+  syncWeather(root);
+}
+
+/** Refleja el estado de la configuración de clima en sus controles. */
+function syncWeather(root) {
+  const w = settings.get().weather || {};
+  const enabled = root.querySelector('#set-weather-enabled');
+  const loc = root.querySelector('#set-weather-loc');
+  if (enabled) enabled.checked = !!w.enabled;
+  if (loc) {
+    loc.textContent = (w.lat != null && w.lon != null)
+      ? (w.label || `${Number(w.lat).toFixed(3)}, ${Number(w.lon).toFixed(3)}`)
+      : 'Sin definir';
+  }
 }
 
 /** Texto en español para el estado de conexión del store. */

@@ -7,9 +7,21 @@
 
 import { store } from './store.js';
 import { settings } from './settings.js';
+import { FakeSocket } from './simulator.js';
 import {
   CONN, LINK, parseMessage, normalizeTelemetry,
 } from './protocol.js';
+
+/** ¿Estamos servidos desde un host local / red privada? */
+function isLocalHost() {
+  const h = location.hostname || '';
+  if (h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === '0.0.0.0') return true;
+  if (h.endsWith('.local')) return true;
+  if (/^10\./.test(h)) return true;
+  if (/^192\.168\./.test(h)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  return false;
+}
 
 // Parametros de tiempo
 const PING_INTERVAL_MS = 5000;     // keepalive a nivel de app
@@ -129,19 +141,39 @@ class WSClient {
 
   // --- Interno --------------------------------------------------------------
 
+  /**
+   * Decide si usar el simulador en navegador (modo demostración) en lugar de
+   * un WebSocket real. 'on' => siempre; 'off' => nunca; 'auto' => simula cuando
+   * no hay host manual y NO estamos en un host local (p. ej. desplegado en Vercel).
+   */
+  _useSimulator() {
+    const cfg = settings.get();
+    const mode = cfg.demoMode || 'auto';
+    if (mode === 'on') return true;
+    if (mode === 'off') return false;
+    if (cfg.host && cfg.host.trim()) return false;
+    return !isLocalHost();
+  }
+
   _open() {
-    let url;
-    try { url = settings.wsUrl(); }
-    catch { url = `ws://${location.host}/ws`; }
+    const useSim = this._useSimulator();
+    store.set({ demo: useSim });
 
     store.setConnection(this.attempts > 0 ? CONN.RECONNECTING : CONN.CONNECTING);
 
     let sock;
-    try {
-      sock = new WebSocket(url);
-    } catch (err) {
-      this._scheduleReconnect();
-      return;
+    if (useSim) {
+      sock = new FakeSocket();
+    } else {
+      let url;
+      try { url = settings.wsUrl(); }
+      catch { url = `ws://${location.host}/ws`; }
+      try {
+        sock = new WebSocket(url);
+      } catch (err) {
+        this._scheduleReconnect();
+        return;
+      }
     }
     this.socket = sock;
 

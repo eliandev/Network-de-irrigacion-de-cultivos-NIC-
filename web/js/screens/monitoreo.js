@@ -16,6 +16,7 @@ import {
 } from '../protocol.js';
 import { history } from '../history.js';
 import { toast, escapeHtml } from '../ui.js';
+import { icon } from '../icons.js';
 
 let unsub = null;       // suscripcion al store
 let timer = null;       // refresco periodico desde IndexedDB
@@ -180,8 +181,10 @@ function render(root) {
   const connChipEl = root.querySelector('#mon-conn-chip');
   const connEl = root.querySelector('#mon-conn');
   // No comunicamos el estado solo por color: incluimos texto e icono.
-  const icon = conn.mod === 'ok' ? '●' : conn.mod === 'warn' ? '◐' : '○';
-  connChipEl.innerHTML = `<span class="chip chip--${conn.mod}"><span aria-hidden="true">${icon}</span> ${escapeHtml(conn.label)}</span>`;
+  const ic = conn.mod === 'ok'
+    ? icon('wifi', { size: 14 })
+    : conn.mod === 'warn' ? icon('rotate-cw', { size: 14 }) : icon('wifi-off', { size: 14 });
+  connChipEl.innerHTML = `<span class="chip chip--${conn.mod}">${ic} ${escapeHtml(conn.label)}</span>`;
   connEl.innerHTML = `
     <div class="kv"><span class="kv__k">Estado</span><span class="kv__v">${escapeHtml(conn.text)}</span></div>
     ${state.reconnectAttempts > 0

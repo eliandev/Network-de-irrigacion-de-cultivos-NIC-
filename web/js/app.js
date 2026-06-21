@@ -10,6 +10,7 @@ import { ws } from './ws-client.js';
 import { settings } from './settings.js';
 import { alerts } from './alerts.js';
 import { history } from './history.js';
+import { weather } from './weather.js';
 import { toast } from './ui.js';
 import { CONN, LINK } from './protocol.js';
 
@@ -92,6 +93,10 @@ function renderShell(state) {
     pill.innerHTML = `<span class="dot dot--${d.dot}" aria-hidden="true"></span><span>${d.label}</span>`;
   }
 
+  // Indicador de modo demostración (datos simulados en el navegador).
+  const demoBadge = document.getElementById('demo-badge');
+  if (demoBadge) demoBadge.hidden = !state.demo;
+
   const banner = document.getElementById('offline-banner');
   if (banner) {
     if (state.connection === CONN.DISCONNECTED) {
@@ -166,6 +171,9 @@ function boot() {
 
   // Alertas + reconexion del banner.
   alerts.init();
+
+  // Clima por ubicacion (Internet, opcional; no bloquea el resto de la app).
+  weather.init();
   const retryBtn = document.querySelector('#offline-banner .banner__action');
   if (retryBtn) retryBtn.addEventListener('click', () => ws.retry());
 
@@ -193,4 +201,4 @@ if (document.readyState === 'loading') {
 }
 
 // Exponer para depuracion en consola.
-window.NIC = { store, ws, settings, alerts, history };
+window.NIC = { store, ws, settings, alerts, history, weather };

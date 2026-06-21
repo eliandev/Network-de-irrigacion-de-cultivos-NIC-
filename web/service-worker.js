@@ -4,7 +4,7 @@
  * WebSocket (no se cachea); aqui solo gestionamos los recursos estaticos.
  */
 
-const CACHE = 'nic-shell-v1';
+const CACHE = 'nic-shell-v3';
 const SHELL = [
   './',
   './index.html',
@@ -19,6 +19,9 @@ const SHELL = [
   './js/settings.js',
   './js/history.js',
   './js/alerts.js',
+  './js/weather.js',
+  './js/simulator.js',
+  './js/icons.js',
   './js/ui.js',
   './js/screens/dashboard.js',
   './js/screens/monitoreo.js',
