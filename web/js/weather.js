@@ -99,6 +99,27 @@ function geolocate() {
   });
 }
 
+/**
+ * Geocodificación inversa: coordenadas -> nombre de lugar legible.
+ * Usa BigDataCloud (gratis, sin API key, con CORS). Best-effort: si falla,
+ * el llamador conserva una etiqueta genérica.
+ * @returns {Promise<string>} p. ej. "San Salvador, El Salvador" (o '' si no hay)
+ */
+async function reverseGeocode(lat, lon) {
+  const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error('REVGEO_HTTP_' + res.status);
+    const j = await res.json();
+    const place = j.city || j.locality || j.principalSubdivision || '';
+    return [place, j.countryName].filter(Boolean).join(', ');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Busca una ciudad por nombre -> { lat, lon, label }. */
 async function geocode(name) {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=es&format=json`;
@@ -186,14 +207,22 @@ export const weather = {
     }
   },
 
-  /** Usa el GPS del navegador, guarda la ubicación y refresca. */
+  /** Usa el GPS del navegador, resuelve la ciudad, guarda la ubicación y refresca. */
   async useMyLocation() {
     try {
       const { lat, lon } = await geolocate();
-      settings.patch({ weather: { enabled: true, source: 'geo', lat, lon, label: 'Mi ubicación' } });
+      // Best-effort: traducir las coordenadas a un nombre de ciudad legible.
+      let label = 'Mi ubicación';
+      try {
+        const resolved = await reverseGeocode(lat, lon);
+        if (resolved) label = resolved;
+      } catch (e) {
+        console.warn('[weather] geocodificación inversa fallida', e);
+      }
+      settings.patch({ weather: { enabled: true, source: 'geo', lat, lon, label } });
       await this.refresh();
       this._startTimer();
-      return { ok: true };
+      return { ok: true, label };
     } catch (err) {
       return { ok: false, message: geoErrorMessage(err) };
     }

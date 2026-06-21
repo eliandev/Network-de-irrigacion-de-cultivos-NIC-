@@ -224,7 +224,8 @@ export function mount(root) {
     try {
       const res = await weather.useMyLocation();
       if (!mounted) return;
-      toast(res.ok ? 'Ubicación detectada' : (res.message || 'No se pudo localizar'),
+      const okMsg = res.label ? `Ubicación: ${res.label}` : 'Ubicación detectada';
+      toast(res.ok ? okMsg : (res.message || 'No se pudo localizar'),
         { type: res.ok ? 'ok' : 'error', duration: res.ok ? 3000 : 4500 });
       syncWeather(root);
     } finally {
