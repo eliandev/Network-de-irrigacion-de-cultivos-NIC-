@@ -1,0 +1,7 @@
+# Solo se publica la carpeta web/ (outputDirectory). Lo demás no es necesario.
+node_modules
+.git
+.claude
+server
+*.log
+tmp

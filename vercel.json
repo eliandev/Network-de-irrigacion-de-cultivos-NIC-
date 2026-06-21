@@ -1,5 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "echo 'NIC: sin dependencias'",
+  "buildCommand": "echo 'NIC: sitio estatico, sin build'",
   "outputDirectory": "web",
   "headers": [
     {
