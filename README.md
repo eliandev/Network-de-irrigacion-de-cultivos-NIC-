@@ -51,8 +51,15 @@ El reconocimiento de plantas por foto usa una **función serverless** ([`api/ide
 
 1. Consigue una clave gratis en **[aistudio.google.com](https://aistudio.google.com)** (sin tarjeta).
 2. **Project → Settings → Environment Variables** → añade `GEMINI_API_KEY` con esa clave.
-3. *(Opcional)* Si tu cuenta usa otro modelo gratis, añade `GEMINI_MODEL` (por defecto `gemini-2.0-flash`).
+3. *(Opcional)* Fuerza un modelo con `GEMINI_MODEL`. Si se omite, la función usa
+   `gemini-flash-latest` y, si no existe, **autodetecta** un modelo Flash disponible
+   (así no hay que tocar código cuando Google rota los nombres).
 4. Redespliega.
+
+> Para ver los modelos disponibles de tu clave:
+> ```bash
+> curl "https://generativelanguage.googleapis.com/v1beta/models?key=TU_CLAVE"
+> ```
 
 Si no la configuras, el resto de la app funciona igual; solo la identificación mostrará "IA no configurada" (y en la demo local devuelve una ficha de ejemplo).
 

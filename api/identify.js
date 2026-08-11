@@ -4,17 +4,25 @@
  * salida JSON estructurada. La clave vive en Vercel como GEMINI_API_KEY y NUNCA
  * se expone al navegador.
  *
- * fetch nativo (Node 18+) — sin dependencias, así el deploy no requiere install.
+ * Resiliente a cambios de modelo: si el modelo configurado ya no existe (404),
+ * consulta la lista de modelos de la cuenta y elige automáticamente uno "flash"
+ * que soporte generateContent — así no hay que editar código cuando Google rota
+ * los nombres de modelo.
+ *
+ * fetch nativo (Node 18+) — sin dependencias.
  *
  * Variables de entorno:
  *   GEMINI_API_KEY  (obligatoria)  — clave gratis de https://aistudio.google.com
- *   GEMINI_MODEL    (opcional)     — modelo; por defecto 'gemini-2.0-flash'.
- *                                    Si tu cuenta usa otro modelo gratis (p. ej.
- *                                    'gemini-2.5-flash'), fíjalo aquí sin tocar código.
+ *   GEMINI_MODEL    (opcional)     — fuerza un modelo concreto (p. ej. 'gemini-2.5-flash').
+ *                                    Si se omite, se intenta 'gemini-flash-latest' y,
+ *                                    si no existe, se autodetecta uno disponible.
  */
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+
+// Cache del modelo resuelto mientras la instancia serverless siga "caliente".
+let RESOLVED_MODEL = null;
 
 // Esquema para structured outputs de Gemini (tipos en MAYÚSCULAS; sin additionalProperties).
 const FICHA_SCHEMA = {
@@ -53,6 +61,41 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
+function buildBody(mediaType, image) {
+  return JSON.stringify({
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: mediaType, data: image } },
+        { text: PROMPT },
+      ],
+    }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: FICHA_SCHEMA,
+    },
+  });
+}
+
+function callModel(apiKey, model, body) {
+  const url = `${API_BASE}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  return fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
+}
+
+/** Descubre un modelo "flash" disponible que soporte generateContent. */
+async function discoverModel(apiKey) {
+  const res = await fetch(`${API_BASE}?key=${encodeURIComponent(apiKey)}&pageSize=200`);
+  if (!res.ok) return null;
+  const j = await res.json();
+  const names = (j.models || [])
+    .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+    .map((m) => String(m.name || '').replace(/^models\//, ''));
+  // Preferimos un "flash" estable (evitando previews/exp), luego cualquier flash, luego cualquier gemini.
+  return names.find((n) => /flash/i.test(n) && !/(exp|preview|thinking)/i.test(n))
+    || names.find((n) => /flash/i.test(n))
+    || names.find((n) => /gemini/i.test(n))
+    || names[0] || null;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
@@ -89,34 +132,31 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url = `${API_BASE}/${encodeURIComponent(MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const upstream = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: mediaType, data: image } },
-            { text: PROMPT },
-          ],
-        }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: FICHA_SCHEMA,
-        },
-      }),
-    });
+    const body = buildBody(mediaType, image);
+    let model = RESOLVED_MODEL || DEFAULT_MODEL;
+    let upstream = await callModel(apiKey, model, body);
+
+    // Si el modelo no existe (retirado/renombrado), autodetectar y reintentar una vez.
+    if (upstream.status === 404) {
+      const picked = await discoverModel(apiKey);
+      if (picked) {
+        model = picked;
+        RESOLVED_MODEL = picked;
+        upstream = await callModel(apiKey, model, body);
+      }
+    }
 
     if (!upstream.ok) {
       const detail = await upstream.text().catch(() => '');
       res.statusCode = 502;
-      res.end(JSON.stringify({ error: 'upstream', status: upstream.status, message: detail.slice(0, 500) }));
+      res.end(JSON.stringify({ error: 'upstream', status: upstream.status, model, message: detail.slice(0, 500) }));
       return;
     }
 
+    // Éxito: recordamos el modelo que funcionó para las próximas llamadas.
+    RESOLVED_MODEL = model;
     const payload = await upstream.json();
 
-    // Bloqueo de seguridad / prompt bloqueado.
     const blocked = payload.promptFeedback && payload.promptFeedback.blockReason;
     const cand = payload.candidates && payload.candidates[0];
     if (blocked || (cand && cand.finishReason === 'SAFETY')) {
