@@ -47,10 +47,12 @@ vercel --prod     # a producción
 La configuración ya está en [`vercel.json`](vercel.json): sirve `web/` como raíz y fija cabeceras correctas (service worker sin caché, tipo MIME del manifest y de los `.js`).
 
 ### 🤖 IA de plantas — variable de entorno (opcional)
-El reconocimiento de plantas por foto usa una **función serverless** ([`api/identify.js`](api/identify.js)) que llama a Claude (vision). Para activarlo en Vercel:
+El reconocimiento de plantas por foto usa una **función serverless** ([`api/identify.js`](api/identify.js)) que llama a **Google Gemini** (nivel gratuito de AI Studio). Para activarlo en Vercel:
 
-1. **Project → Settings → Environment Variables** → añade `ANTHROPIC_API_KEY` con tu clave de Anthropic.
-2. Redespliega.
+1. Consigue una clave gratis en **[aistudio.google.com](https://aistudio.google.com)** (sin tarjeta).
+2. **Project → Settings → Environment Variables** → añade `GEMINI_API_KEY` con esa clave.
+3. *(Opcional)* Si tu cuenta usa otro modelo gratis, añade `GEMINI_MODEL` (por defecto `gemini-2.0-flash`).
+4. Redespliega.
 
 Si no la configuras, el resto de la app funciona igual; solo la identificación mostrará "IA no configurada" (y en la demo local devuelve una ficha de ejemplo).
 
@@ -68,7 +70,7 @@ Si no la configuras, el resto de la app funciona igual; solo la identificación 
 ```
 NIC/
 ├── api/
-│   └── identify.js          Función serverless (Vercel): IA de plantas por foto (Claude vision)
+│   └── identify.js          Función serverless (Vercel): IA de plantas por foto (Google Gemini)
 ├── server/
 │   └── mock-esp8266.js      Simula el controlador (HTTP + WebSocket + /api/identify) para dev
 ├── web/                     <-- ESTO es lo que va al ESP32-S3 (LittleFS) en producción
