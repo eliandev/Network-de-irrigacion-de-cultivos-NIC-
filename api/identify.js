@@ -8,7 +8,9 @@
  * `npm install`. Structured outputs garantiza que la respuesta sea el JSON.
  */
 
-const MODEL = 'claude-opus-5';
+// Haiku 4.5: tiene visión y soporta structured outputs; ~5× más barato que Opus 5
+// (≈ medio centavo por identificación). Suficiente para reconocer plantas.
+const MODEL = 'claude-haiku-4-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
 // Esquema de la ficha (structured outputs: sin min/max; enum/integer/array OK).
@@ -96,7 +98,8 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 1500,
-        thinking: { type: 'disabled' },
+        // Sin 'thinking': en Haiku 4.5 el razonamiento está desactivado por
+        // defecto al omitirlo (rápido y económico para clasificar).
         output_config: { format: { type: 'json_schema', schema: FICHA_SCHEMA } },
         messages: [{
           role: 'user',
