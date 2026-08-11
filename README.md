@@ -47,11 +47,11 @@ vercel --prod     # a producción
 La configuración ya está en [`vercel.json`](vercel.json): sirve `web/` como raíz y fija cabeceras correctas (service worker sin caché, tipo MIME del manifest y de los `.js`).
 
 ### 🤖 IA de plantas — variable de entorno (opcional)
-El reconocimiento de plantas por foto usa una **función serverless** ([`api/identify.js`](api/identify.js)) que llama a **Groq** (GroqCloud, gratis, **sin tarjeta**) con un modelo de visión Llama 4. Para activarlo en Vercel:
+El reconocimiento de plantas por foto usa una **función serverless** ([`api/identify.js`](api/identify.js)) que llama a **Groq** (GroqCloud, gratis, **sin tarjeta**) con un modelo de visión (Qwen3.6-27B). Para activarlo en Vercel:
 
 1. Crea una clave gratis en **[console.groq.com/keys](https://console.groq.com/keys)** (registro con email/Google, sin tarjeta).
 2. **Project → Settings → Environment Variables** → añade `GROQ_API_KEY` con esa clave (Production + Preview).
-3. *(Opcional)* Fuerza otro modelo con `GROQ_MODEL` (por defecto `meta-llama/llama-4-scout-17b-16e-instruct`; hay fallback automático). Groq rota modelos: si diera error, mira el vigente en [console.groq.com/docs/models](https://console.groq.com/docs/models).
+3. *(Opcional)* Fuerza otro modelo con `GROQ_MODEL`. Por defecto la función recorre una lista de modelos de visión candidatos y usa el primero disponible (vigente ago-2026: `qwen/qwen3.6-27b`). Groq **depreca** modelos seguido: si todos fallaran, mira el vigente en [console.groq.com/docs/vision](https://console.groq.com/docs/vision) y ponlo en `GROQ_MODEL`.
 4. Redespliega.
 
 Límite gratis: ~30 peticiones/min y ~1000/día (suficiente para uso personal). Si no la configuras, el resto de la app funciona igual; solo la identificación mostrará "IA no configurada" (y en la demo local devuelve una ficha de ejemplo).
@@ -72,7 +72,7 @@ Límite gratis: ~30 peticiones/min y ~1000/día (suficiente para uso personal). 
 ```
 NIC/
 ├── api/
-│   └── identify.js          Función serverless (Vercel): IA de plantas por foto (Groq, Llama 4 vision)
+│   └── identify.js          Función serverless (Vercel): IA de plantas por foto (Groq, Qwen3.6 vision)
 ├── server/
 │   └── mock-esp8266.js      Simula el controlador (HTTP + WebSocket + /api/identify) para dev
 ├── web/                     <-- ESTO es lo que va al ESP32-S3 (LittleFS) en producción

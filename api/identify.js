@@ -1,8 +1,9 @@
 /**
  * NIC — Función serverless (Vercel) de reconocimiento de plantas por foto.
  * Usa la API de Groq (GroqCloud, nivel gratuito real, sin tarjeta) con un modelo
- * de visión (Llama 4). La clave vive en Vercel como GROQ_API_KEY y NUNCA se
- * expone al navegador. fetch nativo (Node 18+) — sin dependencias.
+ * de visión (Qwen3.6-27B; con respaldos automáticos por si Groq lo rota). La
+ * clave vive en Vercel como GROQ_API_KEY y NUNCA se expone al navegador.
+ * fetch nativo (Node 18+) — sin dependencias.
  *
  * ¿Por qué Groq? Gratis sin tarjeta, server-side con una sola API key, sin
  * geo-bloqueo, y devuelve la ficha completa en una llamada (a diferencia de
@@ -10,14 +11,45 @@
  *
  * Variables de entorno:
  *   GROQ_API_KEY  (obligatoria)  — clave gratis de https://console.groq.com/keys
- *   GROQ_MODEL    (opcional)     — modelo de visión; por defecto Llama 4 Scout.
- *                                  Groq rota modelos: si diera error, revisa
- *                                  https://console.groq.com/docs/models y ponlo aquí.
+ *   GROQ_MODEL    (opcional)     — fuerza un modelo de visión concreto. Por
+ *                                  defecto se recorre una lista de candidatos
+ *                                  (ver VISION_MODELS). Vigente en ago-2026:
+ *                                  qwen/qwen3.6-27b — https://console.groq.com/docs/vision
  */
 
 const API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const PRIMARY_MODEL = process.env.GROQ_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
-const FALLBACK_MODEL = 'meta-llama/llama-4-maverick-17b-128e-instruct';
+
+// Modelos de visión candidatos, en orden de preferencia. Groq DEPRECA modelos
+// con frecuencia (los Llama 4 se apagaron a mediados de 2026), así que probamos
+// en orden hasta que uno responda; el que funcione se cachea en la instancia
+// caliente. GROQ_MODEL (si se define) se prueba primero. Si TODOS fallaran,
+// mira el vigente en https://console.groq.com/docs/vision y ponlo aquí o en
+// GROQ_MODEL sin tocar más código.
+const VISION_MODELS = [
+  'qwen/qwen3.6-27b',                               // vigente (ago-2026): multimodal + JSON
+  'meta-llama/llama-4-scout-17b-16e-instruct',      // respaldo (deprecado)
+  'meta-llama/llama-4-maverick-17b-128e-instruct',  // respaldo (deprecado)
+  'llama-3.2-90b-vision-preview',                   // respaldo histórico
+  'llama-3.2-11b-vision-preview',                   // respaldo histórico
+];
+
+// Modelo que respondió OK en esta instancia caliente (evita reintentar 404s).
+let cachedModel = null;
+
+/** Lista de modelos a intentar: GROQ_MODEL → cache → catálogo, sin duplicar. */
+function candidateModels() {
+  const list = [];
+  if (process.env.GROQ_MODEL) list.push(process.env.GROQ_MODEL);
+  if (cachedModel && !list.includes(cachedModel)) list.push(cachedModel);
+  for (const m of VISION_MODELS) if (!list.includes(m)) list.push(m);
+  return list;
+}
+
+/** ¿El error de Groq indica "modelo inexistente/retirado" (probar el siguiente)? */
+function isModelError(status, detail) {
+  if (status !== 404 && status !== 400) return false;
+  return /model|does not exist|not_found|decommission|deprecat|no longer/i.test(detail || '');
+}
 
 const SYSTEM = 'Eres un botánico experto. Respondes SIEMPRE con un único objeto JSON '
   + 'válido, sin texto adicional ni markdown.';
@@ -111,24 +143,33 @@ export default async function handler(req, res) {
   }
 
   try {
-    let model = PRIMARY_MODEL;
-    let upstream = await callGroq(apiKey, model, image);
-
-    // Groq rota modelos: si el primario está retirado (400/404), probar el alterno.
-    if ((upstream.status === 400 || upstream.status === 404) && model !== FALLBACK_MODEL) {
-      model = FALLBACK_MODEL;
-      upstream = await callGroq(apiKey, model, image);
+    // Recorre los modelos candidatos hasta que uno exista/responda. Solo saltamos
+    // al siguiente cuando el error es "modelo inexistente"; un 400 por la imagen
+    // o un 429 por límite se reportan tal cual (no tiene sentido reintentar).
+    const models = candidateModels();
+    let upstream = null; let model = models[0]; let detail = '';
+    for (let i = 0; i < models.length; i += 1) {
+      model = models[i];
+      const r = await callGroq(apiKey, model, image);
+      if (r.ok) { upstream = r; break; }
+      detail = await r.text().catch(() => '');
+      if (isModelError(r.status, detail) && i < models.length - 1) continue; // probar el siguiente
+      upstream = r; break; // error no relacionado con el modelo, o ya no quedan candidatos
     }
 
     if (!upstream.ok) {
-      const detail = await upstream.text().catch(() => '');
       const code = upstream.status === 429 ? 'rate_limited'
-        : upstream.status === 401 ? 'unauthorized' : 'upstream';
+        : upstream.status === 401 ? 'unauthorized'
+        : isModelError(upstream.status, detail) ? 'no_model' : 'upstream';
+      const message = code === 'no_model'
+        ? 'Ningún modelo de visión de Groq está disponible para tu cuenta. Revisa el vigente en https://console.groq.com/docs/vision y ponlo en GROQ_MODEL.'
+        : detail.slice(0, 500);
       res.statusCode = upstream.status === 429 ? 429 : 502;
-      res.end(JSON.stringify({ error: code, status: upstream.status, model, message: detail.slice(0, 500) }));
+      res.end(JSON.stringify({ error: code, status: upstream.status, model, message }));
       return;
     }
 
+    cachedModel = model; // recuerda el que funcionó para las próximas llamadas (instancia caliente)
     const payload = await upstream.json();
     const text = payload.choices && payload.choices[0]
       && payload.choices[0].message && payload.choices[0].message.content;
