@@ -1,7 +1,7 @@
 /**
  * NIC — Reconocimiento de planta por foto (cliente).
  * Prepara la imagen (reduce tamaño), la envía a /api/identify (función serverless
- * que llama a Claude) y guarda la ficha resultante como "mi planta" en settings.
+ * que llama a Groq) y guarda la ficha resultante como "mi planta" en settings.
  *
  * La ficha de la especie es la LÍNEA BASE: define humedad ideal, frecuencia de
  * riego y cuidados; los sensores aportan el estado real de la planta.
