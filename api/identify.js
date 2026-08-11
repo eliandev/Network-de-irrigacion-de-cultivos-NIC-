@@ -45,10 +45,14 @@ const VISION_MODELS = [
 // el "thinking" de qwen3: (1) JSON mode con presupuesto amplio; (2) más tokens,
 // prompt reforzado y temperatura más baja; (3) SIN response_format, parseando el
 // texto libre (último recurso). En todos apagamos el razonamiento.
+// max_tokens ajustados: con el razonamiento apagado la ficha cabe en ~1024
+// tokens, así se reserva menos TPM (el tier gratis de Groq limita a 8000
+// tokens/min) y se topa menos con el 429. Si algún intento se truncara
+// (finish_reason=length), la escalera sube el presupuesto automáticamente.
 const ATTEMPTS = [
-  { maxTokens: 2048, temperature: 0.2, jsonMode: true,  strictStart: false },
-  { maxTokens: 4096, temperature: 0.1, jsonMode: true,  strictStart: true },
-  { maxTokens: 4096, temperature: 0.1, jsonMode: false, strictStart: true },
+  { maxTokens: 1024, temperature: 0.2, jsonMode: true,  strictStart: false },
+  { maxTokens: 2048, temperature: 0.1, jsonMode: true,  strictStart: true },
+  { maxTokens: 2048, temperature: 0.1, jsonMode: false, strictStart: true },
 ];
 
 // Modelo que respondió OK en esta instancia caliente (evita reintentar 404s).
