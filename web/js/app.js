@@ -11,6 +11,8 @@ import { settings } from './settings.js';
 import { alerts } from './alerts.js';
 import { history } from './history.js';
 import { weather } from './weather.js';
+import { irrigation } from './irrigation.js';
+import { plant } from './plant.js';
 import { toast } from './ui.js';
 import { CONN, LINK } from './protocol.js';
 
@@ -19,6 +21,7 @@ import * as monitoreo from './screens/monitoreo.js';
 import * as control from './screens/control.js';
 import * as alertasScreen from './screens/alertas.js';
 import * as ajustes from './screens/ajustes.js';
+import * as planta from './screens/planta.js';
 
 const ROUTES = {
   inicio: { mod: dashboard, title: 'Inicio' },
@@ -26,6 +29,7 @@ const ROUTES = {
   control: { mod: control, title: 'Control' },
   alertas: { mod: alertasScreen, title: 'Alertas' },
   ajustes: { mod: ajustes, title: 'Ajustes' },
+  planta: { mod: planta, title: 'Mi planta' }, // accesible desde Inicio (sin pestaña)
 };
 const DEFAULT_ROUTE = 'inicio';
 
@@ -73,7 +77,7 @@ function connDescriptor(state) {
   switch (state.connection) {
     case CONN.CONNECTED:
       return state.link === LINK.LOST
-        ? { label: 'Sin enlace Arduino', mod: 'warn', dot: 'warn' }
+        ? { label: 'Sin enlace de sensores', mod: 'warn', dot: 'warn' }
         : { label: 'Conectado', mod: 'ok', dot: 'ok' };
     case CONN.CONNECTING:
       return { label: 'Conectando…', mod: 'warn', dot: 'warn' };
@@ -115,13 +119,12 @@ function renderShell(state) {
     }
   }
 
-  // Badge de alertas sin leer en la pestaña Alertas.
+  // Badge de alertas sin leer (barra inferior + barra lateral).
   const unread = state.alerts.filter((a) => !a.read).length;
-  const badge = document.getElementById('alerts-badge');
-  if (badge) {
+  document.querySelectorAll('.js-alerts-badge').forEach((badge) => {
     badge.hidden = unread === 0;
     badge.textContent = unread > 9 ? '9+' : String(unread);
-  }
+  });
 }
 
 // --- Historial: registrar cada telemetria ----------------------------------
@@ -174,6 +177,9 @@ function boot() {
 
   // Clima por ubicacion (Internet, opcional; no bloquea el resto de la app).
   weather.init();
+
+  // Historial de riegos (detecta cada riego desde la telemetria).
+  irrigation.init();
   const retryBtn = document.querySelector('#offline-banner .banner__action');
   if (retryBtn) retryBtn.addEventListener('click', () => ws.retry());
 
@@ -201,4 +207,4 @@ if (document.readyState === 'loading') {
 }
 
 // Exponer para depuracion en consola.
-window.NIC = { store, ws, settings, alerts, history, weather };
+window.NIC = { store, ws, settings, alerts, history, weather, irrigation, plant };

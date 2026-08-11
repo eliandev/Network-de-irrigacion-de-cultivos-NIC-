@@ -4,7 +4,7 @@
  * WebSocket (no se cachea); aqui solo gestionamos los recursos estaticos.
  */
 
-const CACHE = 'nic-shell-v3';
+const CACHE = 'nic-shell-v7';
 const SHELL = [
   './',
   './index.html',
@@ -21,6 +21,8 @@ const SHELL = [
   './js/alerts.js',
   './js/weather.js',
   './js/simulator.js',
+  './js/irrigation.js',
+  './js/plant.js',
   './js/icons.js',
   './js/ui.js',
   './js/screens/dashboard.js',
@@ -28,6 +30,7 @@ const SHELL = [
   './js/screens/control.js',
   './js/screens/alertas.js',
   './js/screens/ajustes.js',
+  './js/screens/planta.js',
 ];
 
 self.addEventListener('install', (event) => {

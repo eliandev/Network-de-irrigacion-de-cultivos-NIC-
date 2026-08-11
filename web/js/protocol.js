@@ -9,6 +9,9 @@ export const ADC_MAX = 1023;
 export const DEFAULT_THRESHOLD_ADC = 721;   // umbral de riego automatico (PRD)
 export const DEFAULT_MANUAL_MIN = 20;       // duracion por defecto del riego manual
 export const DEFAULT_CRITICAL_PCT = 15;     // humedad critica por defecto (%)
+export const DEFAULT_WATER_LOW_PCT = 20;    // nivel de tanque para avisar "bajo"
+export const DEFAULT_BATTERY_LOW_PCT = 20;  // bateria de la powerbank para avisar
+export const DEFAULT_PUMP_FLOW_ML_MIN = 400; // caudal estimado de la bomba (ml/min)
 
 // Estados de la conexion WebSocket (cliente <-> ESP) — ver PRD 13.1
 export const CONN = Object.freeze({
@@ -82,6 +85,32 @@ export const HUMIDITY_LABEL = Object.freeze({
   critico: 'Crítico',
 });
 
+// --- Estados de sensores adicionales ---------------------------------------
+
+/** Estado del nivel de agua del tanque. @returns {'ok'|'low'|'empty'} */
+export function waterStatus(pct, lowPct = DEFAULT_WATER_LOW_PCT) {
+  if (pct == null) return 'ok';
+  if (pct <= 3) return 'empty';
+  if (pct <= lowPct) return 'low';
+  return 'ok';
+}
+export const WATER_LABEL = Object.freeze({ ok: 'OK', low: 'Bajo', empty: 'Vacío' });
+
+/** Estado de la bateria de la powerbank. @returns {'ok'|'low'} */
+export function batteryStatus(pct, lowPct = DEFAULT_BATTERY_LOW_PCT) {
+  if (pct == null) return 'ok';
+  return pct <= lowPct ? 'low' : 'ok';
+}
+
+/** Nivel de luz cualitativo a partir de un % (0..100). */
+export function lightLabel(pct) {
+  if (pct == null) return '—';
+  if (pct < 20) return 'Oscuro';
+  if (pct < 45) return 'Bajo';
+  if (pct < 75) return 'Adecuado';
+  return 'Brillante';
+}
+
 // --- Builders de comandos --------------------------------------------------
 
 export function cmdPumpOn(durationS) {
@@ -114,6 +143,11 @@ export function parseMessage(data) {
   return obj;
 }
 
+/** Un campo numerico opcional: devuelve el numero redondeado o null si no viene. */
+function numOrNull(v) {
+  return Number.isFinite(Number(v)) ? Math.round(Number(v)) : null;
+}
+
 /** Normaliza un mensaje de telemetria a la forma interna del store. */
 export function normalizeTelemetry(msg) {
   const raw = clampAdc(msg.humidity_raw);
@@ -126,5 +160,13 @@ export function normalizeTelemetry(msg) {
     threshold: clampAdc(msg.threshold ?? DEFAULT_THRESHOLD_ADC),
     manualRemaining: Math.max(0, Math.round(Number(msg.manual_remaining_s) || 0)),
     ts: Number(msg.ts) || Math.floor(Date.now() / 1000),
+    // Sensores adicionales (DHT22, nivel de agua, bateria, luz). null si el
+    // firmware aun no los envia -> la UI los oculta o muestra "—".
+    tempC: numOrNull(msg.temp_c),
+    humidityAir: numOrNull(msg.humidity_air),
+    waterPct: numOrNull(msg.water_pct),
+    batteryPct: numOrNull(msg.battery_pct),
+    charging: msg.charging === true,
+    lightPct: numOrNull(msg.light_pct),
   };
 }

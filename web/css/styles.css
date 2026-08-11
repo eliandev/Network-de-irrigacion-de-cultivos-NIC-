@@ -309,6 +309,37 @@ button { font: inherit; }
   .weather__meta { flex: 1.2; }
 }
 
+/* ------------------------------------------------ Ambiente / energía (stats) */
+.ministats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 480px) { .ministats { grid-template-columns: repeat(4, 1fr); } }
+.ministat {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.ministat .icon { color: var(--brand-blue); flex: none; }
+.ministat__v { font-weight: 800; font-size: 16px; line-height: 1.1; }
+.ministat__l { font-size: 12px; color: var(--text-dim); }
+.ministat--warn .icon, .ministat--warn .ministat__v { color: var(--warn); }
+.ministat--error .icon, .ministat--error .ministat__v { color: var(--error); }
+
+.levelbar { display: flex; align-items: center; gap: 12px; }
+.levelbar .progress { flex: 1; }
+.levelbar .progress__bar.is-low { background: var(--warn); }
+.levelbar .progress__bar.is-empty { background: var(--error); }
+
+/* --------------------------------------------------------------- Mi planta */
+.plant-head { display: flex; gap: 14px; align-items: flex-start; }
+.plant-thumb {
+  width: 84px; height: 84px; object-fit: cover; flex: none;
+  border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
+}
+.plant-sci { font-style: italic; color: var(--text-soft); font-size: 14px; }
+.plant-care {
+  margin: 6px 0 0; padding-left: 18px; color: var(--text-soft);
+  font-size: 13.5px; display: flex; flex-direction: column; gap: 4px;
+}
+
 /* --------------------------------------------------------------- Stat rows */
 .stat { display: flex; flex-direction: column; gap: 2px; }
 .stat__value { font-size: 26px; font-weight: 800; }
@@ -549,4 +580,82 @@ input::placeholder { color: var(--text-dim); }
 
 @media (min-width: 560px) {
   .hero__big { font-size: 32px; }
+}
+
+/* ==========================================================================
+   Layout de escritorio (panel de administración)
+   Móvil: barra inferior (tabbar) + una columna. Escritorio: barra lateral +
+   rejilla de tarjetas.
+   ========================================================================== */
+.main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.layout { display: contents; }   /* móvil: no genera caja; el sidebar se oculta */
+.sidebar { display: none; }
+
+@media (min-width: 900px) {
+  .layout { display: flex; align-items: stretch; }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 250px;
+    flex: none;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100dvh;
+    background: var(--bg-elev);
+    border-right: 1px solid var(--border);
+    padding: 16px 12px;
+    gap: 6px;
+    z-index: 40;
+  }
+  .sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 6px 10px 16px; }
+  .sidebar__brand .brand__name {
+    font-size: 22px; font-weight: 800; letter-spacing: 0.04em;
+    background: var(--brand-grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sidenav { display: flex; flex-direction: column; gap: 4px; }
+  .sidenav__item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 12px; border-radius: var(--radius-sm);
+    background: none; border: none; color: var(--text-soft);
+    font: inherit; font-weight: 600; cursor: pointer; text-align: left; width: 100%;
+    transition: background 0.15s, color 0.15s;
+  }
+  .sidenav__item:hover { background: var(--surface); color: var(--text); }
+  .sidenav__item.is-active { background: var(--surface-2); color: var(--brand-blue); }
+  .sidenav__icon { display: flex; color: var(--text-dim); flex: none; }
+  .sidenav__item.is-active .sidenav__icon { color: var(--brand-blue); }
+  .sidenav__badge {
+    margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px;
+    border-radius: 10px; background: var(--error); color: #fff;
+    font-size: 11px; font-weight: 700; line-height: 20px; text-align: center;
+  }
+  .sidebar__foot { margin-top: auto; padding: 12px 12px 4px; font-size: 12px; }
+
+  /* La marca vive en la barra lateral; la barra superior solo muestra el estado. */
+  .tabbar { display: none; }
+  .topbar .brand { display: none; }
+  .topbar { justify-content: flex-end; }
+
+  /* Rejilla de tarjetas tipo dashboard */
+  .view {
+    max-width: 1180px;
+    padding: 22px 28px 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-content: start;
+  }
+  .view > .screen-title,
+  .view > .screen-sub,
+  .view > #dash-hero,
+  .view > #ctrl-conn-warn { grid-column: 1 / -1; }
+  .view > div:empty { display: none; }   /* wrappers vacíos no dejan huecos */
+
+  #toast-host { bottom: 20px; }
+}
+
+@media (min-width: 1320px) {
+  .view { grid-template-columns: 1fr 1fr 1fr; }
 }

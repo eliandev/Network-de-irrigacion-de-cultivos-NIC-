@@ -13,8 +13,10 @@ import { settings } from '../settings.js';
 import {
   CONN, LINK,
   humidityStatus, HUMIDITY_LABEL,
+  lightLabel, waterStatus, WATER_LABEL, batteryStatus,
 } from '../protocol.js';
 import { history } from '../history.js';
+import { irrigation } from '../irrigation.js';
 import { toast, escapeHtml } from '../ui.js';
 import { icon } from '../icons.js';
 
@@ -44,6 +46,11 @@ export function mount(root) {
     </div>
 
     <div class="card">
+      <div class="card__header"><span class="card__title">${icon('thermometer', { size: 18 })} Ambiente</span></div>
+      <div id="mon-ambient"></div>
+    </div>
+
+    <div class="card">
       <div class="card__header">
         <span class="card__title">Historial de humedad</span>
         <span class="small muted">Última hora</span>
@@ -57,7 +64,18 @@ export function mount(root) {
 
     <div class="card">
       <div class="card__header">
-        <span class="card__title">Conexión con el Arduino</span>
+        <span class="card__title">${icon('droplet', { size: 18 })} Historial de riegos</span>
+        <span id="mon-water-count" class="chip"></span>
+      </div>
+      <div id="mon-waterings"></div>
+      <div class="btn-row mt">
+        <button type="button" class="btn btn--ghost btn--small" id="mon-water-clear">${icon('trash', { size: 15 })} Limpiar riegos</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <span class="card__title">Conexión con el controlador</span>
         <span id="mon-conn-chip"></span>
       </div>
       <div id="mon-conn"></div>
@@ -76,6 +94,12 @@ export function mount(root) {
     } catch (err) {
       console.warn('[monitoreo] no se pudo limpiar el historial', err);
     }
+  });
+
+  // Boton: limpiar historial de riegos.
+  root.querySelector('#mon-water-clear').addEventListener('click', () => {
+    irrigation.clear();
+    toast('Historial de riegos borrado.', { type: 'ok' });
   });
 
   // Carga inicial del historial (async) y primer render.
@@ -133,9 +157,9 @@ function connState(state) {
     case CONN.CONNECTED:
       // El WebSocket vive, pero el enlace serial ESP<->Arduino puede estar caido.
       if (state.link === LINK.LOST) {
-        return { mod: 'error', label: 'Error de enlace', text: 'Error de enlace con el Arduino' };
+        return { mod: 'error', label: 'Error de enlace', text: 'Error de enlace con los sensores' };
       }
-      return { mod: 'ok', label: 'Conectado', text: 'Conectado con el Arduino' };
+      return { mod: 'ok', label: 'Conectado', text: 'Conectado con el controlador (ESP32)' };
     case CONN.RECONNECTING:
       return { mod: 'warn', label: 'Reconectando', text: 'Reconectando con el dispositivo…' };
     case CONN.CONNECTING:
@@ -169,6 +193,10 @@ function render(root) {
     chipEl.innerHTML = '';
     liveEl.innerHTML = `<p class="empty-state">Esperando lectura del sensor…</p>`;
   }
+
+  // --- Ambiente / energía + historial de riegos ---
+  renderAmbient(root, t, cfg);
+  renderWaterings(root, state);
 
   // --- Historial: sparkline SVG + ejes minimos ---
   const chartEl = root.querySelector('#mon-chart');
@@ -260,6 +288,62 @@ function axisLabels(pts) {
     <div class="kv"><span class="kv__k">Mínimo</span><span class="kv__v">${min}%</span></div>
     <div class="kv"><span class="kv__k">Máximo</span><span class="kv__v">${max}%</span></div>
     <div class="kv"><span class="kv__k">Última</span><span class="kv__v">${last}%</span></div>`;
+}
+
+// --- Ambiente / energía + riegos -------------------------------------------
+
+function ministat(iconName, value, label, mod = '') {
+  return `<div class="ministat ${mod}">${icon(iconName, { size: 20 })}
+    <div><div class="ministat__v">${escapeHtml(String(value))}</div>
+    <div class="ministat__l">${escapeHtml(label)}</div></div></div>`;
+}
+
+function renderAmbient(root, t, cfg) {
+  const el = root.querySelector('#mon-ambient');
+  if (!el) return;
+  if (!t) { el.innerHTML = '<p class="empty-state">Sin datos de ambiente.</p>'; return; }
+  const bat = t.batteryPct;
+  const batStat = bat != null
+    ? ministat('battery', bat + '%', t.charging ? 'Batería (carga)' : 'Batería',
+        batteryStatus(bat, cfg.batteryLowPct) === 'low' ? 'ministat--error' : '')
+    : '';
+  const water = t.waterPct;
+  const wSt = water != null ? waterStatus(water, cfg.waterLowPct) : 'ok';
+  const wMod = wSt === 'empty' ? 'ministat--error' : wSt === 'low' ? 'ministat--warn' : '';
+  el.innerHTML = `
+    <div class="ministats">
+      ${ministat('thermometer', t.tempC != null ? t.tempC + '°C' : '—', 'Temperatura')}
+      ${ministat('droplets', t.humidityAir != null ? t.humidityAir + '%' : '—', 'Humedad aire')}
+      ${ministat('sun', lightLabel(t.lightPct), 'Luz')}
+      ${ministat('waves', water != null ? water + '%' : '—', water != null ? `Tanque (${WATER_LABEL[wSt]})` : 'Tanque', wMod)}
+      ${batStat}
+    </div>`;
+}
+
+function renderWaterings(root, state) {
+  const el = root.querySelector('#mon-waterings');
+  if (!el) return;
+  const irr = state.irrigation || { count: 0, totalMl: 0, events: [] };
+  const countEl = root.querySelector('#mon-water-count');
+  if (countEl) countEl.textContent = `${irr.count} riegos · ~${irr.totalMl} ml`;
+  const events = (irr.events || []).slice(-8).reverse();
+  if (events.length === 0) {
+    el.innerHTML = '<p class="empty-state">Aún no se han registrado riegos.</p>';
+    return;
+  }
+  el.innerHTML = events.map((e) => {
+    const delta = (e.pctBefore != null && e.pctAfter != null)
+      ? `${e.pctAfter - e.pctBefore >= 0 ? '+' : ''}${e.pctAfter - e.pctBefore}%` : '';
+    return `<div class="kv">
+      <span class="kv__k">${fmtTime(e.ts)} · ${fmtDur(e.durS)}${e.mode === 'manual' ? ' · manual' : ''}</span>
+      <span class="kv__v">~${e.ml} ml${delta ? ` · ${escapeHtml(delta)}` : ''}</span></div>`;
+  }).join('');
+}
+
+function fmtDur(s) {
+  const m = Math.floor(s / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return `${m}:${ss}`;
 }
 
 function fmtTime(ts) {

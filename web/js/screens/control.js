@@ -18,7 +18,7 @@ import {
   CONN, PUMP, MODE,
   ADC_MAX, DEFAULT_THRESHOLD_ADC,
   cmdPumpOn, cmdPumpOff, cmdSetMode, cmdSetThreshold,
-  thresholdAdcToPct, clampAdc,
+  thresholdAdcToPct, clampAdc, waterStatus,
 } from '../protocol.js';
 import { toast, confirmDialog, escapeHtml } from '../ui.js';
 import { icon } from '../icons.js';
@@ -291,7 +291,10 @@ function render(root) {
   const connected = state.connection === CONN.CONNECTED;
   const pending = state.pending || {};
 
-  // --- Aviso de conexión ----------------------------------------------------
+  // Protección de bomba en seco: tanque de agua vacío.
+  const waterEmpty = !!(t && t.waterPct != null && waterStatus(t.waterPct) === 'empty');
+
+  // --- Aviso de conexión / protección ---------------------------------------
   const warnEl = root.querySelector('#ctrl-conn-warn');
   if (!connected) {
     warnEl.innerHTML = `
@@ -301,6 +304,15 @@ function render(root) {
           <span class="kv__v"><span class="chip chip--warn">Controles bloqueados</span></span>
         </div>
         <p class="soon-note">Los controles se reactivarán al recuperar la conexión.</p>
+      </div>`;
+  } else if (waterEmpty) {
+    warnEl.innerHTML = `
+      <div class="card">
+        <div class="kv">
+          <span class="kv__k">${icon('triangle-alert', { size: 15 })} Tanque de agua vacío</span>
+          <span class="kv__v"><span class="chip chip--error">Riego bloqueado</span></span>
+        </div>
+        <p class="soon-note">El riego manual se bloquea para no dañar la bomba en seco. Rellena el tanque.</p>
       </div>`;
   } else {
     warnEl.innerHTML = '';
@@ -322,11 +334,11 @@ function render(root) {
   // pump_on/pump_off comparten el ciclo de pending por acción.
   const pumpPending = !!pending.pump_on || !!pending.pump_off;
 
-  minInput.disabled = !connected || pumpPending;
+  minInput.disabled = !connected || pumpPending || waterEmpty;
 
-  // Botón Activar: deshabilitado si no hay conexión, si hay comando pendiente
-  // o si la bomba ya está encendida.
-  btnOn.disabled = !connected || pumpPending || pumpOn;
+  // Botón Activar: deshabilitado si no hay conexión, si hay comando pendiente,
+  // si la bomba ya está encendida o si el tanque está vacío (protección).
+  btnOn.disabled = !connected || pumpPending || pumpOn || waterEmpty;
   if (!pending.pump_on) btnOn.textContent = 'Activar riego';
 
   // Botón Detener: solo tiene sentido si la bomba está encendida.

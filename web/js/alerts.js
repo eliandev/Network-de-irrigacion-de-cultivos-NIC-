@@ -7,13 +7,13 @@
 
 import { store } from './store.js';
 import { settings } from './settings.js';
-import { CONN, LINK } from './protocol.js';
+import { CONN, LINK, waterStatus } from './protocol.js';
 
 const MAX_ALERTS = 50;
 let counter = 0;
 
 // Estado de borde (para no repetir la misma alerta mientras la condicion dura).
-const active = { critical: false, connection: false, arduino: false };
+const active = { critical: false, connection: false, arduino: false, battery: false, tank: false };
 
 function pushAlert({ kind, severity, title, message }) {
   counter += 1;
@@ -64,6 +64,39 @@ function evaluate(state) {
     }
   }
 
+  // 1b) Batería baja de la powerbank
+  if (t && t.batteryPct != null) {
+    const low = t.batteryPct <= cfg.batteryLowPct;
+    if (low && !active.battery) {
+      active.battery = true;
+      const a = pushAlert({
+        kind: 'battery_low', severity: 'aviso',
+        title: 'Batería baja',
+        message: `La powerbank está al ${t.batteryPct}%.`,
+      });
+      if (cfg.notify.battery) notify(a.title, a.message);
+    } else if (!low && t.batteryPct > cfg.batteryLowPct + 5) {
+      active.battery = false;
+    }
+  }
+
+  // 1c) Tanque de agua bajo / vacío
+  if (t && t.waterPct != null) {
+    const st = waterStatus(t.waterPct, cfg.waterLowPct);
+    const low = st !== 'ok';
+    if (low && !active.tank) {
+      active.tank = true;
+      const a = pushAlert({
+        kind: 'tank_low', severity: st === 'empty' ? 'critico' : 'aviso',
+        title: st === 'empty' ? 'Tanque de agua vacío' : 'Tanque de agua bajo',
+        message: `Nivel del tanque de reserva: ${t.waterPct}%.`,
+      });
+      if (cfg.notify.tank) notify(a.title, a.message);
+    } else if (!low && t.waterPct > cfg.waterLowPct + 5) {
+      active.tank = false;
+    }
+  }
+
   // 2) Perdida de conexion (WebSocket)
   const lostConn = state.connection === CONN.DISCONNECTED;
   if (lostConn && !active.connection) {
@@ -86,8 +119,8 @@ function evaluate(state) {
     const a = pushAlert({
       kind: 'arduino_lost',
       severity: 'critico',
-      title: 'Enlace con el Arduino perdido',
-      message: 'El ESP no recibe respuesta del Arduino. El riego automático sigue activo por seguridad.',
+      title: 'Enlace de sensores perdido',
+      message: 'El controlador ESP32 no recibe respuesta de los sensores. El riego automático sigue activo por seguridad.',
     });
     if (cfg.notify.connection) notify(a.title, a.message);
   } else if (state.link === LINK.OK || state.connection !== CONN.CONNECTED) {

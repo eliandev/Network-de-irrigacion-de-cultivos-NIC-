@@ -13,6 +13,7 @@ import { store } from '../store.js';
 import { settings } from '../settings.js';
 import { ws } from '../ws-client.js';
 import { weather } from '../weather.js';
+import { plant } from '../plant.js';
 import { CONN, LINK } from '../protocol.js';
 import { toast, confirmDialog, escapeHtml } from '../ui.js';
 import { icon } from '../icons.js';
@@ -70,11 +71,38 @@ export function mount(root) {
         <span class="switch__track" aria-hidden="true"></span>
         <span class="switch__label">Avisos de conexión</span>
       </label>
+      <label class="switch mt" for="set-notify-watering">
+        <input type="checkbox" id="set-notify-watering" />
+        <span class="switch__track" aria-hidden="true"></span>
+        <span class="switch__label">Aviso al regar (con el cambio de humedad)</span>
+      </label>
+      <label class="switch mt" for="set-notify-tank">
+        <input type="checkbox" id="set-notify-tank" />
+        <span class="switch__track" aria-hidden="true"></span>
+        <span class="switch__label">Tanque de agua por agotarse</span>
+      </label>
       <div class="field mt">
         <label for="set-critical-pct">Humedad crítica (%)</label>
         <input type="number" id="set-critical-pct" min="0" max="100" step="1"
                inputmode="numeric" value="${escapeHtml(String(cfg.criticalPct))}" />
         <span class="hint">Por debajo de este valor se considera estado crítico.</span>
+      </div>
+    </div>
+
+    <!-- 2c) Sensores y bomba -->
+    <div class="card">
+      <div class="card__header"><span class="card__title">Sensores y bomba</span></div>
+      <div class="field">
+        <label for="set-water-low">Aviso de tanque bajo (%)</label>
+        <input type="number" id="set-water-low" min="0" max="100" step="1"
+               inputmode="numeric" value="${escapeHtml(String(cfg.waterLowPct))}" />
+        <span class="hint">Nivel del tanque (HC-SR04) para avisar que está por agotarse.</span>
+      </div>
+      <div class="field mt">
+        <label for="set-pump-flow">Caudal de la bomba (ml/min)</label>
+        <input type="number" id="set-pump-flow" min="10" max="5000" step="10"
+               inputmode="numeric" value="${escapeHtml(String(cfg.pumpFlowMlMin))}" />
+        <span class="hint">Se usa para estimar el agua utilizada en cada riego.</span>
       </div>
     </div>
 
@@ -123,15 +151,28 @@ export function mount(root) {
       </div>
     </div>
 
+    <!-- 3b) Mi planta -->
+    <div class="card">
+      <div class="card__header"><span class="card__title">${icon('leaf', { size: 18 })} Mi planta</span>
+        <button type="button" class="btn btn--small btn--ghost" id="set-plant-open">Abrir</button></div>
+      <div class="kv"><span class="kv__k">Planta guardada</span><span class="kv__v" id="set-plant-name">—</span></div>
+      <div class="btn-row mt">
+        <button type="button" class="btn btn--ghost btn--small" id="set-plant-clear" hidden>Quitar planta</button>
+      </div>
+      <p class="hint mt">Identifica tu planta por foto en la sección "Mi planta" (desde Inicio).</p>
+    </div>
+
     <!-- 4) Información del dispositivo -->
     <div class="card">
       <div class="card__header"><span class="card__title">Información del dispositivo</span></div>
       <div class="kv"><span class="kv__k">Versión de la app</span><span class="kv__v">NIC MVP 1.0</span></div>
+      <div class="kv"><span class="kv__k">Controlador</span><span class="kv__v">ESP32-S3 Nano (WiFi 2.4 GHz)</span></div>
+      <div class="kv"><span class="kv__k">Sensores</span><span class="kv__v small">YL-69 (suelo), DHT11 (aire), HC-SR04 (nivel), LDR (luz)</span></div>
       <div class="kv"><span class="kv__k">Estado de la red</span><span class="kv__v" id="set-info-net">—</span></div>
       <div class="kv"><span class="kv__k">URL WebSocket</span><span class="kv__v small" id="set-info-wsurl">—</span></div>
       <div class="kv"><span class="kv__k">Última telemetría</span><span class="kv__v" id="set-info-telemetry">—</span></div>
-      <div class="kv"><span class="kv__k">ID del ESP</span><span class="kv__v">—</span></div>
-      <p class="soon-note">El identificador del ESP no está disponible en el MVP.</p>
+      <div class="kv"><span class="kv__k">ID del controlador</span><span class="kv__v">—</span></div>
+      <p class="soon-note">El identificador del controlador no está disponible en el MVP.</p>
     </div>
 
     <!-- 5) Restaurar -->
@@ -190,6 +231,35 @@ export function mount(root) {
   });
   notifyConnection.addEventListener('change', () => {
     settings.patch({ notify: { connection: notifyConnection.checked } });
+  });
+  root.querySelector('#set-notify-watering').addEventListener('change', (e) => {
+    settings.patch({ notify: { watering: e.target.checked } });
+  });
+  root.querySelector('#set-notify-tank').addEventListener('change', (e) => {
+    settings.patch({ notify: { tank: e.target.checked } });
+  });
+
+  // 2c) Sensores y energía: umbrales + caudal (acotados al salir del campo).
+  const numField = (id, min, max, key) => {
+    root.querySelector(id).addEventListener('change', (e) => {
+      let v = Math.round(Number(e.target.value));
+      if (!Number.isFinite(v)) v = settings.get()[key];
+      v = Math.max(min, Math.min(max, v));
+      e.target.value = String(v);
+      settings.patch({ [key]: v });
+    });
+  };
+  numField('#set-water-low', 0, 100, 'waterLowPct');
+  numField('#set-pump-flow', 10, 5000, 'pumpFlowMlMin');
+
+  // 3b) Mi planta.
+  root.querySelector('#set-plant-open').addEventListener('click', () => { location.hash = '#/planta'; });
+  root.querySelector('#set-plant-clear').addEventListener('click', async () => {
+    const ok = await confirmDialog({
+      title: 'Quitar planta', message: '¿Eliminar la ficha de la planta guardada?',
+      confirmText: 'Quitar', danger: true,
+    });
+    if (ok) { plant.clear(); if (mounted) syncPlant(root); }
   });
 
   // 2) Humedad crítica (%): se persiste al salir del campo, acotado a 0..100.
@@ -291,8 +361,22 @@ function syncInputs(root) {
   root.querySelector('#set-notify-critical').checked = !!cfg.notify.critical;
   root.querySelector('#set-notify-connection').checked = !!cfg.notify.connection;
   root.querySelector('#set-critical-pct').value = String(cfg.criticalPct);
+  root.querySelector('#set-notify-watering').checked = !!cfg.notify.watering;
+  root.querySelector('#set-notify-tank').checked = !!cfg.notify.tank;
+  root.querySelector('#set-water-low').value = String(cfg.waterLowPct);
+  root.querySelector('#set-pump-flow').value = String(cfg.pumpFlowMlMin);
   root.querySelector('#set-demo').value = cfg.demoMode || 'auto';
   syncWeather(root);
+  syncPlant(root);
+}
+
+/** Refleja la planta guardada en la sección de Ajustes. */
+function syncPlant(root) {
+  const saved = settings.get().plant;
+  const nameEl = root.querySelector('#set-plant-name');
+  const clearBtn = root.querySelector('#set-plant-clear');
+  if (nameEl) nameEl.textContent = saved && saved.ficha ? (saved.ficha.nombre_comun || 'Planta') : 'Ninguna';
+  if (clearBtn) clearBtn.hidden = !(saved && saved.ficha);
 }
 
 /** Refleja el estado de la configuración de clima en sus controles. */

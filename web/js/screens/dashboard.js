@@ -10,15 +10,18 @@
 import { store } from '../store.js';
 import { settings } from '../settings.js';
 import { weather } from '../weather.js';
+import { plant } from '../plant.js';
 import {
   CONN, LINK, PUMP, MODE,
   humidityStatus, HUMIDITY_LABEL,
+  lightLabel, waterStatus, WATER_LABEL, batteryStatus,
 } from '../protocol.js';
 import { toast, escapeHtml } from '../ui.js';
 import { icon } from '../icons.js';
 
 let unsub = null;
 let unsubWeather = null;
+let unsubSettings = null;
 
 export function mount(root) {
   root.innerHTML = `
@@ -31,6 +34,11 @@ export function mount(root) {
     </div>
 
     <div class="card">
+      <div class="card__header"><span class="card__title">${icon('thermometer', { size: 18 })} Ambiente</span></div>
+      <div id="dash-ambient"></div>
+    </div>
+
+    <div class="card">
       <div class="card__header"><span class="card__title">Estado del riego</span></div>
       <div id="dash-riego"></div>
       <div class="btn-row mt">
@@ -38,12 +46,18 @@ export function mount(root) {
       </div>
     </div>
 
+    <!-- Mi planta (IA) -->
+    <div id="dash-plant"></div>
+
+    <!-- Nivel de agua del tanque (sensor real) -->
+    <div id="dash-water"></div>
+
     <!-- Clima en vivo según la ubicación (Open-Meteo) -->
     <div id="dash-weather"></div>
 
-    <div class="grid-2">
-      ${soonCard('waves', 'Nivel de agua')}
-      ${soonCard('clock', 'Próximo riego')}
+    <div class="card is-soon">
+      <div class="card__header"><span class="card__title">${icon('clock', { size: 18 })} Próximo riego</span><span class="badge-soon">Próximamente</span></div>
+      <p class="soon-note">La programación de horarios llegará en una próxima fase.</p>
     </div>
 
     <div class="card">
@@ -60,6 +74,8 @@ export function mount(root) {
   unsub = store.subscribe(() => render(root));
   // El clima tiene su propio ciclo (red/Internet), independiente de la telemetría.
   unsubWeather = weather.subscribe(() => renderWeather(root));
+  // La ficha de planta vive en settings: re-render al guardarla/quitarla.
+  unsubSettings = settings.subscribe(() => renderPlant(root));
   render(root);
   renderWeather(root);
 }
@@ -67,14 +83,7 @@ export function mount(root) {
 export function unmount() {
   if (unsub) { unsub(); unsub = null; }
   if (unsubWeather) { unsubWeather(); unsubWeather = null; }
-}
-
-function soonCard(iconName, title) {
-  return `
-    <div class="card is-soon">
-      <div class="card__header"><span class="card__title">${icon(iconName, { size: 18 })} ${escapeHtml(title)}</span></div>
-      <span class="badge-soon">Próximamente</span>
-    </div>`;
+  if (unsubSettings) { unsubSettings(); unsubSettings = null; }
 }
 
 function systemState(state) {
@@ -138,15 +147,24 @@ function render(root) {
     const modeChip = t.mode === MODE.AUTO
       ? '<span class="chip chip--info">Automático</span>'
       : '<span class="chip chip--warn">Manual</span>';
+    const last = state.irrigation && state.irrigation.last;
     riegoEl.innerHTML = `
       <div class="kv"><span class="kv__k">Bomba</span><span class="kv__v">${pumpChip}</span></div>
       <div class="kv"><span class="kv__k">Modo</span><span class="kv__v">${modeChip}</span></div>
       ${t.manualRemaining > 0
         ? `<div class="kv"><span class="kv__k">Riego manual restante</span><span class="kv__v">${fmtMMSS(t.manualRemaining)}</span></div>`
+        : ''}
+      ${last
+        ? `<div class="kv"><span class="kv__k">Último riego</span><span class="kv__v">${fmtAgo(last.ts)} · ~${last.ml} ml</span></div>`
         : ''}`;
   } else {
     riegoEl.innerHTML = `<p class="empty-state">Sin datos del riego.</p>`;
   }
+
+  // --- Ambiente / nivel de agua / mi planta ---
+  renderAmbient(root, t);
+  renderWater(root, t, cfg);
+  renderPlant(root);
 
   // --- Alertas recientes ---
   const alertsEl = root.querySelector('#dash-alerts');
@@ -168,6 +186,87 @@ function render(root) {
     manualBtn.disabled = !connected;
     manualBtn.setAttribute('aria-disabled', !connected ? 'true' : 'false');
   }
+}
+
+// --- Ambiente / energía -----------------------------------------------------
+
+function ministat(iconName, value, label, mod = '') {
+  return `<div class="ministat ${mod}">${icon(iconName, { size: 20 })}
+    <div><div class="ministat__v">${escapeHtml(String(value))}</div>
+    <div class="ministat__l">${escapeHtml(label)}</div></div></div>`;
+}
+
+function renderAmbient(root, t) {
+  const el = root.querySelector('#dash-ambient');
+  if (!el) return;
+  if (!t) { el.innerHTML = '<p class="empty-state">Sin datos de ambiente.</p>'; return; }
+  const cfg = settings.get();
+  const bat = t.batteryPct;
+  // La batería solo se muestra si el hardware la reporta (no hay sensor por defecto).
+  const batStat = bat != null
+    ? ministat('battery', bat + '%', t.charging ? 'Batería (carga)' : 'Batería',
+        batteryStatus(bat, cfg.batteryLowPct) === 'low' ? 'ministat--error' : '')
+    : '';
+  el.innerHTML = `
+    <div class="ministats">
+      ${ministat('thermometer', t.tempC != null ? t.tempC + '°C' : '—', 'Temperatura')}
+      ${ministat('droplets', t.humidityAir != null ? t.humidityAir + '%' : '—', 'Humedad aire')}
+      ${ministat('sun', lightLabel(t.lightPct), 'Luz')}
+      ${batStat}
+    </div>`;
+}
+
+function renderWater(root, t, cfg) {
+  const el = root.querySelector('#dash-water');
+  if (!el) return;
+  if (!t || t.waterPct == null) { el.innerHTML = ''; return; } // sin sensor: no ocupa espacio
+  const st = waterStatus(t.waterPct, cfg.waterLowPct);
+  const chipMod = st === 'empty' ? 'error' : st === 'low' ? 'warn' : 'ok';
+  const barMod = st === 'empty' ? 'is-empty' : st === 'low' ? 'is-low' : '';
+  el.innerHTML = `
+    <div class="card">
+      <div class="card__header">
+        <span class="card__title">${icon('waves', { size: 18 })} Nivel de agua</span>
+        <span class="chip chip--${chipMod}">${WATER_LABEL[st]}</span>
+      </div>
+      <div class="levelbar">
+        <div class="progress"><div class="progress__bar ${barMod}" style="width:${t.waterPct}%;"></div></div>
+        <span class="kv__v">${t.waterPct}%</span>
+      </div>
+    </div>`;
+}
+
+function renderPlant(root) {
+  const el = root.querySelector('#dash-plant');
+  if (!el) return;
+  const saved = plant.getSaved();
+  if (saved && saved.ficha) {
+    const f = saved.ficha;
+    el.innerHTML = `
+      <div class="card">
+        <div class="card__header"><span class="card__title">${icon('leaf', { size: 18 })} Mi planta</span>
+          <button type="button" class="btn btn--small btn--ghost" id="dash-plant-open">Ver ficha</button></div>
+        <div class="plant-head">
+          ${saved.thumb ? `<img class="plant-thumb" src="${saved.thumb}" alt="" />` : ''}
+          <div>
+            <div class="ministat__v">${escapeHtml(f.nombre_comun || 'Planta')}</div>
+            <div class="plant-sci">${escapeHtml(f.nombre_cientifico || '')}</div>
+            <p class="small muted mt">Humedad ideal ${Number.isFinite(f.humedad_ideal_pct) ? f.humedad_ideal_pct + '%' : '—'} · ${escapeHtml(f.frecuencia_riego || '')}</p>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div class="card">
+        <div class="card__header"><span class="card__title">${icon('sparkles', { size: 18 })} Mi planta</span></div>
+        <p class="soon-note">Identifica tu planta con una foto y obtén su ficha de cuidado (riego, humedad ideal…).</p>
+        <div class="btn-row mt">
+          <button type="button" class="btn btn--primary btn--small" id="dash-plant-open">${icon('camera', { size: 16 })} Identificar planta</button>
+        </div>
+      </div>`;
+  }
+  const openBtn = el.querySelector('#dash-plant-open');
+  if (openBtn) openBtn.addEventListener('click', () => { location.hash = '#/planta'; });
 }
 
 function alertRow(a) {

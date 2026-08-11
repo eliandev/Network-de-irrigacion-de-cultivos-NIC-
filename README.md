@@ -46,12 +46,20 @@ vercel --prod     # a producción
 
 La configuración ya está en [`vercel.json`](vercel.json): sirve `web/` como raíz y fija cabeceras correctas (service worker sin caché, tipo MIME del manifest y de los `.js`).
 
+### 🤖 IA de plantas — variable de entorno (opcional)
+El reconocimiento de plantas por foto usa una **función serverless** ([`api/identify.js`](api/identify.js)) que llama a Claude (vision). Para activarlo en Vercel:
+
+1. **Project → Settings → Environment Variables** → añade `ANTHROPIC_API_KEY` con tu clave de Anthropic.
+2. Redespliega.
+
+Si no la configuras, el resto de la app funciona igual; solo la identificación mostrará "IA no configurada" (y en la demo local devuelve una ficha de ejemplo).
+
 ### Origen de los datos (Ajustes → Conexión)
 - **Automático** (por defecto): real en red local, demo en host público.
-- **Hardware real (ESP8266):** fuerza el WebSocket real.
+- **Hardware real (ESP32-S3):** fuerza el WebSocket real.
 - **Demostración:** fuerza el simulador (para enseñar la UI en cualquier lugar).
 
-> El **clima** (Open-Meteo) sí funciona en Vercel: es la única función que usa Internet. El **GPS** del navegador también, porque Vercel sirve por HTTPS.
+> El **clima** (Open-Meteo) y la **IA de plantas** usan Internet. El **GPS** del navegador funciona porque Vercel sirve por HTTPS. La app es responsive: **panel admin con barra lateral en escritorio** y barra inferior en móvil.
 
 ---
 
@@ -59,30 +67,45 @@ La configuración ya está en [`vercel.json`](vercel.json): sirve `web/` como ra
 
 ```
 NIC/
+├── api/
+│   └── identify.js          Función serverless (Vercel): IA de plantas por foto (Claude vision)
 ├── server/
-│   └── mock-esp8266.js      Simula ESP8266 (HTTP estático + WebSocket) y el Arduino en lazo cerrado
-├── web/                     <-- ESTO es lo que va al ESP8266 (LittleFS) en producción
-│   ├── index.html           App shell (barra, banner, vistas, navegación de 5 pestañas)
+│   └── mock-esp8266.js      Simula el controlador (HTTP + WebSocket + /api/identify) para dev
+├── web/                     <-- ESTO es lo que va al ESP32-S3 (LittleFS) en producción
+│   ├── index.html           App shell (barra lateral + barra inferior, panel admin responsive)
 │   ├── manifest.webmanifest Manifiesto PWA
 │   ├── service-worker.js    Caché del app shell (uso offline)
 │   ├── assets/              logo.svg, icon.svg (gota de agua con brote, azul→verde)
-│   ├── css/styles.css       Sistema de diseño (tema NIC)
+│   ├── css/styles.css       Sistema de diseño + layout de escritorio (panel admin)
 │   └── js/
 │       ├── app.js           Bootstrap + router + shell (pill, banner, badge DEMO)
 │       ├── store.js         Estado central reactivo (pub/sub)
 │       ├── protocol.js      Constantes, conversiones y (de)serialización JSON
 │       ├── ws-client.js     WebSocket (o simulador): reconexión, keepalive, ack, estados
-│       ├── simulator.js     "WebSocket falso" que simula el Arduino (modo demo / Vercel)
-│       ├── settings.js      Preferencias (host/IP, demo, clima…) en localStorage
+│       ├── simulator.js     "WebSocket falso" que simula el controlador (modo demo / Vercel)
+│       ├── settings.js      Preferencias (host/IP, demo, sensores, planta…) en localStorage
 │       ├── history.js       Historial de humedad en IndexedDB (24 h)
-│       ├── alerts.js        Generación de alertas + notificaciones del navegador
+│       ├── irrigation.js    Historial de riegos + agua usada (detecta cada riego)
+│       ├── alerts.js        Alertas (humedad, conexión, tanque) + notificaciones
 │       ├── weather.js       Clima por ubicación (Open-Meteo, sin API key)
+│       ├── plant.js         IA de plantas: captura foto + llama /api/identify
 │       ├── icons.js         Set de íconos SVG outlined (sin emojis)
 │       ├── ui.js            Toasts + diálogo de confirmación
-│       └── screens/         dashboard · monitoreo · control · alertas · ajustes
-├── vercel.json              Config de despliegue estático en Vercel
+│       └── screens/         dashboard · monitoreo · control · alertas · ajustes · planta
+├── vercel.json              Config de despliegue en Vercel (estático + funciones)
 └── package.json
 ```
+
+## 🔌 Hardware
+
+| Componente | Función |
+|---|---|
+| **ESP32-S3 Nano** (WiFi 2.4 GHz) | Controlador principal |
+| **YL-69** (sonda resistiva) | Humedad del suelo (riego por umbral) |
+| **DHT11 / KY-015** | Temperatura y humedad del aire |
+| **HC-SR04** (ultrasónico) | Nivel del tanque de agua (distancia al agua) |
+| **LDR** | Luz (ubicación de la planta) |
+| Relé + bomba sumergible | Actuador de riego |
 
 ---
 
@@ -90,11 +113,14 @@ NIC/
 
 Coincide con el PRD §6.4. Implementado en `web/js/protocol.js` y `server/mock-esp8266.js`.
 
-**Telemetría — ESP → App** (~1 Hz):
+**Telemetría — controlador → App** (~1 Hz):
 ```json
 { "type":"telemetry", "humidity_raw":540, "humidity_pct":47, "pump":"off",
-  "mode":"auto", "threshold":721, "manual_remaining_s":0, "ts":1718970000 }
+  "mode":"auto", "threshold":721, "manual_remaining_s":0, "ts":1718970000,
+  "temp_c":24, "humidity_air":55, "water_pct":80, "light_pct":60 }
 ```
+Los sensores extra (`temp_c` DHT11, `humidity_air` DHT11, `water_pct` HC-SR04, `light_pct` LDR)
+son opcionales: si el firmware no los envía, la app oculta esas tarjetas.
 
 **Comando — App → ESP → Arduino:**
 ```json

@@ -16,7 +16,10 @@ const initialState = {
   demo: false,                   // true => datos simulados en navegador (sin hardware)
 
   // Telemetria (ultimo valor conocido)
-  telemetry: null,               // { raw, pct, pump, mode, threshold, manualRemaining, ts }
+  telemetry: null,               // { raw, pct, pump, mode, threshold, manualRemaining, ts, ... }
+
+  // Riegos: resumen derivado por irrigation.js (historial local)
+  irrigation: { count: 0, totalMl: 0, last: null, events: [] },
 
   // Alertas activas / historial de alertas (las gestiona alerts.js)
   alerts: [],

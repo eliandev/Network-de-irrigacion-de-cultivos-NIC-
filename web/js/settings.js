@@ -3,17 +3,24 @@
  * Conexion (host/IP), notificaciones, unidades, idioma, humedad critica, etc.
  */
 
-import { DEFAULT_CRITICAL_PCT, DEFAULT_MANUAL_MIN } from './protocol.js';
+import {
+  DEFAULT_CRITICAL_PCT, DEFAULT_MANUAL_MIN,
+  DEFAULT_WATER_LOW_PCT, DEFAULT_BATTERY_LOW_PCT, DEFAULT_PUMP_FLOW_ML_MIN,
+} from './protocol.js';
 
 const KEY = 'nic.settings.v1';
 
 const DEFAULTS = Object.freeze({
   host: '',                 // host/IP manual; vacio => usar el origen actual (location.host)
-  notify: { critical: true, connection: true },
+  notify: { critical: true, connection: true, watering: true, battery: true, tank: true },
   units: 'pct',             // 'pct' (futuro: 'c' para temperatura)
   lang: 'es',
   criticalPct: DEFAULT_CRITICAL_PCT,
   manualDefaultMin: DEFAULT_MANUAL_MIN,
+  waterLowPct: DEFAULT_WATER_LOW_PCT,       // umbral de aviso de tanque bajo
+  batteryLowPct: DEFAULT_BATTERY_LOW_PCT,   // umbral de aviso de bateria baja
+  pumpFlowMlMin: DEFAULT_PUMP_FLOW_ML_MIN,  // caudal para estimar el agua usada
+  plant: null,              // ficha de la planta identificada por IA (o null)
   // Origen de los datos: 'auto' (real en LAN, demo fuera), 'on' (siempre demo), 'off' (siempre real).
   demoMode: 'auto',
   // Clima por ubicacion (Open-Meteo). Requiere Internet; opcional.

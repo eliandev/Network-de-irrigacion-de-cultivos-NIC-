@@ -18,6 +18,21 @@ const FAILSAFE_MAX_S = 3600;
 const OPEN_DELAY_MS = 60;     // simula el establecimiento de conexión
 const REPLY_DELAY_MS = 20;    // latencia simulada: el ack llega DESPUÉS del send
 
+/**
+ * Evoluciona los sensores adicionales un paso (~1 s). Mutado en `s` (float).
+ * Sensores reales: DHT11 (temp/humedad aire), HC-SR04 (nivel de agua), LDR (luz).
+ * Reutilizado por el servidor mock (misma lógica).
+ */
+function stepSensors(s, pumping) {
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  s.tempC = clamp(s.tempC + rnd(-0.4, 0.4), 15, 35);        // DHT11: 0–50 °C
+  s.humidityAir = clamp(s.humidityAir + rnd(-1.2, 1.2), 30, 85); // DHT11: 20–90 %
+  s.lightPct = clamp(s.lightPct + rnd(-4, 4), 5, 100);      // LDR
+  // El tanque (medido por el HC-SR04) baja mientras se riega.
+  s.waterPct = clamp(s.waterPct + (pumping ? -1.4 : 0.02), 0, 100);
+}
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
 export class FakeSocket {
   constructor() {
     this.readyState = 0; // CONNECTING
@@ -26,7 +41,12 @@ export class FakeSocket {
     this.onclose = null;
     this.onerror = null;
 
-    this.sim = { raw: 600, threshold: 721, mode: 'auto', manualUntil: 0 };
+    this.sim = {
+      raw: 600, threshold: 721, mode: 'auto', manualUntil: 0,
+      autoOn: false, // estado del riego automático con histéresis
+      // Sensores adicionales (valores flotantes internos; se redondean al enviar)
+      tempC: 24, humidityAir: 55, waterPct: 100, lightPct: 60,
+    };
     this._tickTimer = null;
     this._openTimer = setTimeout(() => this._open(), OPEN_DELAY_MS);
   }
@@ -47,7 +67,13 @@ export class FakeSocket {
 
   _pumpState(now) {
     if (this.sim.manualUntil > now) return 'on';
-    if (this.sim.mode === 'auto') return this.sim.raw > this.sim.threshold ? 'on' : 'off';
+    if (this.sim.mode === 'auto') {
+      // Histéresis: riega cuando supera el umbral y no para hasta bajar bastante,
+      // evitando el traqueteo (encendido/apagado) alrededor del umbral.
+      if (this.sim.raw > this.sim.threshold) this.sim.autoOn = true;
+      else if (this.sim.raw < this.sim.threshold - 60) this.sim.autoOn = false;
+      return this.sim.autoOn ? 'on' : 'off';
+    }
     return 'off';
   }
 
@@ -66,6 +92,10 @@ export class FakeSocket {
       threshold: this.sim.threshold,
       manual_remaining_s: manualRemaining,
       ts: Math.floor(now / 1000),
+      temp_c: Math.round(this.sim.tempC),
+      humidity_air: Math.round(this.sim.humidityAir),
+      water_pct: Math.round(this.sim.waterPct),
+      light_pct: Math.round(this.sim.lightPct),
     };
   }
 
@@ -77,6 +107,7 @@ export class FakeSocket {
     else this.sim.raw += 2 + Math.random() * 8;            // secándose
     this.sim.raw = Math.max(0, Math.min(ADC_MAX, Math.round(this.sim.raw + noise)));
     if (this.sim.manualUntil && this.sim.manualUntil <= now) this.sim.manualUntil = 0; // failsafe
+    stepSensors(this.sim, pumping);
     this._emit(this._telemetry());
   }
 

@@ -41,13 +41,31 @@ const sim = {
   threshold: 721,      // umbral de activacion del riego automatico (ADC)
   mode: 'auto',        // 'auto' | 'manual'
   manualUntil: 0,      // epoch(ms) hasta el que dura el riego manual (failsafe)
+  autoOn: false,       // estado del riego automatico con histeresis
   linkOk: true,        // enlace ESP <-> Arduino
+  // Sensores reales: DHT11 (temp/humedad aire), HC-SR04 (nivel de agua), LDR (luz)
+  tempC: 24, humidityAir: 55, waterPct: 100, lightPct: 60,
 };
+
+function clampf(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+/** Evoluciona los sensores adicionales un paso (~1 s). Igual que el simulador. */
+function stepSensors(pumping) {
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  sim.tempC = clampf(sim.tempC + rnd(-0.4, 0.4), 15, 35);
+  sim.humidityAir = clampf(sim.humidityAir + rnd(-1.2, 1.2), 30, 85);
+  sim.lightPct = clampf(sim.lightPct + rnd(-4, 4), 5, 100);
+  sim.waterPct = clampf(sim.waterPct + (pumping ? -1.4 : 0.02), 0, 100);
+}
 
 /** Devuelve el estado de la bomba derivado del estado del sistema. */
 function pumpState(now) {
   if (sim.manualUntil > now) return 'on';        // riego manual activo
-  if (sim.mode === 'auto') return sim.raw > sim.threshold ? 'on' : 'off';
+  if (sim.mode === 'auto') {
+    // Histeresis: evita el traqueteo alrededor del umbral.
+    if (sim.raw > sim.threshold) sim.autoOn = true;
+    else if (sim.raw < sim.threshold - 60) sim.autoOn = false;
+    return sim.autoOn ? 'on' : 'off';
+  }
   return 'off';                                  // modo manual sin riego activo
 }
 
@@ -61,6 +79,7 @@ function stepPhysics(now) {
     sim.raw += 2 + Math.random() * 8;   // secandose => raw sube
   }
   sim.raw = Math.max(0, Math.min(ADC_MAX, Math.round(sim.raw + noise)));
+  stepSensors(pumping);
 }
 
 function buildTelemetry() {
@@ -78,8 +97,29 @@ function buildTelemetry() {
     threshold: sim.threshold,
     manual_remaining_s: manualRemaining,
     ts: Math.floor(now / 1000),
+    temp_c: Math.round(sim.tempC),
+    humidity_air: Math.round(sim.humidityAir),
+    water_pct: Math.round(sim.waterPct),
+    light_pct: Math.round(sim.lightPct),
   };
 }
+
+// Ficha de ejemplo para /api/identify en desarrollo (sin llamar a Claude).
+const SAMPLE_FICHA = {
+  es_planta: true,
+  nombre_comun: 'Albahaca',
+  nombre_cientifico: 'Ocimum basilicum',
+  descripcion: 'Hierba aromática anual muy usada en cocina; prefiere sol y suelo húmedo pero bien drenado.',
+  frecuencia_riego: 'Cada 1–2 días; mantener el suelo húmedo sin encharcar.',
+  humedad_ideal_pct: 60,
+  luz: 'Pleno sol o luz muy brillante (6+ horas).',
+  cuidados: [
+    'Pinza las flores para prolongar la producción de hojas.',
+    'Evita el encharcamiento para prevenir hongos en la raíz.',
+    'Cosecha desde arriba para fomentar el crecimiento.',
+  ],
+  confianza: 'media',
+};
 
 // ---------------------------------------------------------------------------
 // HTTP estatico (sirve la PWA desde /web)
@@ -102,6 +142,26 @@ const MIME = {
 function serveStatic(req, res) {
   try {
     const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+
+    // Endpoint de IA (maqueta local): devuelve una ficha de ejemplo. En Vercel,
+    // este mismo endpoint lo atiende la funcion serverless que llama a Claude.
+    if (urlPath === '/api/identify') {
+      if (req.method !== 'POST') {
+        res.writeHead(405, { 'Content-Type': 'application/json; charset=utf-8' })
+          .end(JSON.stringify({ error: 'Usa POST' }));
+        return;
+      }
+      let body = '';
+      req.on('data', (c) => { body += c; if (body.length > 12e6) req.destroy(); });
+      req.on('end', () => {
+        setTimeout(() => {
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
+            .end(JSON.stringify({ ficha: SAMPLE_FICHA, source: 'mock' }));
+        }, 700); // simula la latencia de la IA
+      });
+      return;
+    }
+
     let rel = urlPath === '/' ? '/index.html' : urlPath;
     // Evitar path traversal.
     const safe = path.normalize(rel).replace(/^(\.\.[/\\])+/, '');
