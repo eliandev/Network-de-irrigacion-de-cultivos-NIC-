@@ -47,21 +47,16 @@ vercel --prod     # a producción
 La configuración ya está en [`vercel.json`](vercel.json): sirve `web/` como raíz y fija cabeceras correctas (service worker sin caché, tipo MIME del manifest y de los `.js`).
 
 ### 🤖 IA de plantas — variable de entorno (opcional)
-El reconocimiento de plantas por foto usa una **función serverless** ([`api/identify.js`](api/identify.js)) que llama a **Google Gemini** (nivel gratuito de AI Studio). Para activarlo en Vercel:
+El reconocimiento de plantas por foto usa una **función serverless** ([`api/identify.js`](api/identify.js)) que llama a **Groq** (GroqCloud, gratis, **sin tarjeta**) con un modelo de visión Llama 4. Para activarlo en Vercel:
 
-1. Consigue una clave gratis en **[aistudio.google.com](https://aistudio.google.com)** (sin tarjeta).
-2. **Project → Settings → Environment Variables** → añade `GEMINI_API_KEY` con esa clave.
-3. *(Opcional)* Fuerza un modelo con `GEMINI_MODEL`. Si se omite, la función usa
-   `gemini-flash-latest` y, si no existe, **autodetecta** un modelo Flash disponible
-   (así no hay que tocar código cuando Google rota los nombres).
+1. Crea una clave gratis en **[console.groq.com/keys](https://console.groq.com/keys)** (registro con email/Google, sin tarjeta).
+2. **Project → Settings → Environment Variables** → añade `GROQ_API_KEY` con esa clave (Production + Preview).
+3. *(Opcional)* Fuerza otro modelo con `GROQ_MODEL` (por defecto `meta-llama/llama-4-scout-17b-16e-instruct`; hay fallback automático). Groq rota modelos: si diera error, mira el vigente en [console.groq.com/docs/models](https://console.groq.com/docs/models).
 4. Redespliega.
 
-> Para ver los modelos disponibles de tu clave:
-> ```bash
-> curl "https://generativelanguage.googleapis.com/v1beta/models?key=TU_CLAVE"
-> ```
+Límite gratis: ~30 peticiones/min y ~1000/día (suficiente para uso personal). Si no la configuras, el resto de la app funciona igual; solo la identificación mostrará "IA no configurada" (y en la demo local devuelve una ficha de ejemplo).
 
-Si no la configuras, el resto de la app funciona igual; solo la identificación mostrará "IA no configurada" (y en la demo local devuelve una ficha de ejemplo).
+> **Nota:** los cuidados/humedad los genera el modelo (no una base botánica verificada), por eso la ficha incluye un nivel de **confianza** y un aviso.
 
 ### Origen de los datos (Ajustes → Conexión)
 - **Automático** (por defecto): real en red local, demo en host público.
@@ -77,7 +72,7 @@ Si no la configuras, el resto de la app funciona igual; solo la identificación 
 ```
 NIC/
 ├── api/
-│   └── identify.js          Función serverless (Vercel): IA de plantas por foto (Google Gemini)
+│   └── identify.js          Función serverless (Vercel): IA de plantas por foto (Groq, Llama 4 vision)
 ├── server/
 │   └── mock-esp8266.js      Simula el controlador (HTTP + WebSocket + /api/identify) para dev
 ├── web/                     <-- ESTO es lo que va al ESP32-S3 (LittleFS) en producción
