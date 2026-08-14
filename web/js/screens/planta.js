@@ -24,14 +24,17 @@ export function mount(root) {
 
   root.innerHTML = `
     <h1 class="screen-title">Mi planta</h1>
-    <p class="screen-sub">Identifica tu planta con Antonio.ia y usa su ficha como referencia de cuidado.</p>
+    <p class="screen-sub">Identifica tu planta con <span class="ia-name">Antonio.ia</span> y usa su ficha como referencia de cuidado.</p>
 
-    <div class="card">
-      <div class="card__header"><span class="card__title">${icon('sparkles', { size: 18 })} Antonio.ia — Reconocer por foto</span></div>
-      <p class="soon-note">Toma o sube una foto de la planta; Antonio.ia identifica la especie, su frecuencia de riego y su humedad ideal.</p>
+    <div class="card card--ia">
+      <div class="card__header">
+        <span class="card__title">${icon('sparkles', { size: 18 })} Reconocer por foto</span>
+        <span class="ia-badge">${icon('sparkles', { size: 13 })} Antonio.ia</span>
+      </div>
+      <p class="soon-note">Toma o sube una foto de la planta; <span class="ia-name">Antonio.ia</span> identifica la especie, su frecuencia de riego y su humedad ideal.</p>
       <input type="file" id="plant-file" accept="image/*" capture="environment" hidden />
       <div class="btn-row mt">
-        <button type="button" class="btn btn--primary" id="plant-shoot">${icon('camera', { size: 16 })} Tomar / subir foto</button>
+        <button type="button" class="btn btn--primary" id="plant-shoot">${icon('camera', { size: 16 })} Escanear con Antonio.ia</button>
       </div>
       <div id="plant-status" class="mt"></div>
     </div>
@@ -126,7 +129,7 @@ function fichaCard(saved) {
   const conf = f.confianza === 'alta' ? 'ok' : f.confianza === 'baja' ? 'warn' : 'info';
   const cuidados = Array.isArray(f.cuidados) ? f.cuidados : [];
   return `
-    <div class="card">
+    <div class="card card--ia">
       <div class="card__header">
         <span class="card__title">${icon('leaf', { size: 18 })} ${escapeHtml(f.nombre_comun || 'Planta')}</span>
         <span class="chip chip--${conf}">Confianza ${escapeHtml(f.confianza || '—')}</span>
@@ -148,7 +151,7 @@ function fichaCard(saved) {
           : ''}
         <button type="button" class="btn btn--ghost btn--small" id="plant-remove">${icon('x', { size: 15 })} Quitar planta</button>
       </div>
-      <p class="hint mt">Ficha generada por Antonio.ia como línea base. La humedad real la miden los sensores.</p>
+      <p class="ia-credit">${icon('sparkles', { size: 13 })} Ficha generada por <b>Antonio.ia</b> como línea base. La humedad real la miden los sensores.</p>
     </div>`;
 }
 

@@ -11,6 +11,14 @@
   --brand-green: #2ECC71;
   --brand-grad: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-blue-deep) 45%, var(--brand-green) 100%);
 
+  /* Antonio.ia — la IA de plantas tiene identidad propia (violeta),
+     para distinguirla del azul/verde del sistema de riego. */
+  --ia: #A98BFF;
+  --ia-deep: #7B5CFF;
+  --ia-bg: rgba(169, 139, 255, 0.13);
+  --ia-border: rgba(169, 139, 255, 0.42);
+  --ia-grad: linear-gradient(135deg, #7B5CFF 0%, #A98BFF 55%, #C9B3FF 100%);
+
   /* Superficies */
   --bg: #0b1220;
   --bg-elev: #121b2e;
@@ -339,6 +347,88 @@ button { font: inherit; }
   margin: 6px 0 0; padding-left: 18px; color: var(--text-soft);
   font-size: 13.5px; display: flex; flex-direction: column; gap: 4px;
 }
+
+/* ------------------------------------------------------- Antonio.ia (marca)
+   La IA de plantas se identifica con violeta en toda la app: badge, tarjeta
+   destacada y la franja del hero. */
+
+/* Nombre de la IA en texto corrido. El color plano es la base; el degradado
+   solo se aplica si el navegador lo soporta, para que el nombre nunca quede
+   invisible en navegadores viejos. */
+.ia-name {
+  font-weight: 800;
+  color: var(--ia);
+}
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .ia-name {
+    background: var(--ia-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+/* Píldora "Antonio.ia" para encabezados de tarjeta. */
+.ia-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--ia-bg);
+  border: 1px solid var(--ia-border);
+  color: var(--ia);
+  font-size: 11.5px; font-weight: 800; letter-spacing: 0.02em;
+  text-transform: none;
+  white-space: nowrap;
+}
+.ia-badge .icon { color: var(--ia); }
+
+/* Tarjeta con acento de la IA: borde violeta y filo superior degradado. */
+.card--ia {
+  border-color: var(--ia-border);
+  position: relative;
+  overflow: hidden;
+}
+.card--ia::before {
+  content: '';
+  position: absolute; inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--ia-grad);
+}
+.card--ia .card__title .icon { color: var(--ia); }
+
+/* Crédito al pie de la ficha. */
+.ia-credit {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 12px 0 0;
+  font-size: 12.5px; color: var(--text-dim);
+}
+.ia-credit .icon { color: var(--ia); }
+.ia-credit b { color: var(--ia); font-weight: 800; }
+
+/* Franja de la IA dentro del hero (sobre el degradado azul-verde). */
+.hero__ia {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 14px; padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  width: 100%;
+  text-align: left;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+  min-height: var(--tap);
+}
+.hero__ia:hover { background: rgba(255, 255, 255, 0.22); }
+.hero__ia:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.hero__ia .icon { flex: none; }
+.hero__ia-txt { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.hero__ia-txt b { font-size: 13.5px; font-weight: 800; }
+.hero__ia-txt span {
+  font-size: 12px; opacity: 0.9;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hero__ia-go { margin-left: auto; flex: none; opacity: 0.85; }
 
 /* --------------------------------------------------------------- Stat rows */
 .stat { display: flex; flex-direction: column; gap: 2px; }

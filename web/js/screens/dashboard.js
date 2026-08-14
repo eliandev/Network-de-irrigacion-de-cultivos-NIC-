@@ -105,6 +105,18 @@ function render(root) {
   // --- Hero: estado del sistema ---
   const sys = systemState(state);
   const heroEl = root.querySelector('#dash-hero');
+  const savedPlant = plant.getSaved();
+  const fichaPlanta = savedPlant && savedPlant.ficha ? savedPlant.ficha : null;
+
+  // Franja de Antonio.ia: si ya hay planta muestra cuál, si no invita a escanear.
+  const heroIa = fichaPlanta
+    ? `<b>Antonio.ia identificó tu planta</b>
+       <span>${escapeHtml(fichaPlanta.nombre_comun || 'Planta')} · humedad ideal ${
+         Number.isFinite(fichaPlanta.humedad_ideal_pct) ? fichaPlanta.humedad_ideal_pct + '%' : '—'
+       }</span>`
+    : `<b>Escanea tu planta con Antonio.ia</b>
+       <span>Toma una foto y obtén su ficha de cuidado</span>`;
+
   heroEl.innerHTML = `
     <div class="card hero">
       <div class="hero__state">
@@ -116,7 +128,15 @@ function render(root) {
         <div class="hero__metric"><b>${t ? (t.pump === PUMP.ON ? 'Encendida' : 'Apagada') : '—'}</b><span>Bomba</span></div>
         <div class="hero__metric"><b>${t ? (t.mode === MODE.AUTO ? 'Automático' : 'Manual') : '—'}</b><span>Modo</span></div>
       </div>
+      <button type="button" class="hero__ia" id="dash-hero-ia">
+        ${icon('sparkles', { size: 20 })}
+        <span class="hero__ia-txt">${heroIa}</span>
+        <span class="hero__ia-go">${icon('chevron-right', { size: 18 })}</span>
+      </button>
     </div>`;
+
+  const heroIaBtn = heroEl.querySelector('#dash-hero-ia');
+  if (heroIaBtn) heroIaBtn.addEventListener('click', () => { location.hash = '#/planta'; });
 
   // --- Humedad: gauge + chip de estado ---
   const gaugeEl = root.querySelector('#dash-gauge');
@@ -243,9 +263,11 @@ function renderPlant(root) {
   if (saved && saved.ficha) {
     const f = saved.ficha;
     el.innerHTML = `
-      <div class="card">
-        <div class="card__header"><span class="card__title">${icon('leaf', { size: 18 })} Mi planta</span>
-          <button type="button" class="btn btn--small btn--ghost" id="dash-plant-open">Ver ficha</button></div>
+      <div class="card card--ia">
+        <div class="card__header">
+          <span class="card__title">${icon('leaf', { size: 18 })} Mi planta</span>
+          <span class="ia-badge">${icon('sparkles', { size: 13 })} Antonio.ia</span>
+        </div>
         <div class="plant-head">
           ${saved.thumb ? `<img class="plant-thumb" src="${saved.thumb}" alt="" />` : ''}
           <div>
@@ -254,14 +276,21 @@ function renderPlant(root) {
             <p class="small muted mt">Humedad ideal ${Number.isFinite(f.humedad_ideal_pct) ? f.humedad_ideal_pct + '%' : '—'} · ${escapeHtml(f.frecuencia_riego || '')}</p>
           </div>
         </div>
+        <p class="ia-credit">${icon('sparkles', { size: 13 })} Ficha generada por <b>Antonio.ia</b></p>
+        <div class="btn-row mt">
+          <button type="button" class="btn btn--small btn--ghost" id="dash-plant-open">Ver ficha completa</button>
+        </div>
       </div>`;
   } else {
     el.innerHTML = `
-      <div class="card">
-        <div class="card__header"><span class="card__title">${icon('sparkles', { size: 18 })} Mi planta</span></div>
-        <p class="soon-note">Identifica tu planta con una foto usando Antonio.ia y obtén su ficha de cuidado (riego, humedad ideal…).</p>
+      <div class="card card--ia">
+        <div class="card__header">
+          <span class="card__title">${icon('sparkles', { size: 18 })} Mi planta</span>
+          <span class="ia-badge">${icon('sparkles', { size: 13 })} Antonio.ia</span>
+        </div>
+        <p class="soon-note">Escanea tu planta con <span class="ia-name">Antonio.ia</span>: toma una foto y obtén su ficha de cuidado (riego, humedad ideal…).</p>
         <div class="btn-row mt">
-          <button type="button" class="btn btn--primary btn--small" id="dash-plant-open">${icon('camera', { size: 16 })} Identificar planta</button>
+          <button type="button" class="btn btn--primary btn--small" id="dash-plant-open">${icon('camera', { size: 16 })} Escanear con Antonio.ia</button>
         </div>
       </div>`;
   }
