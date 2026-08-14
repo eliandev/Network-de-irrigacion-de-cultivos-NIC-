@@ -20,7 +20,7 @@ const DEFAULTS = Object.freeze({
   waterLowPct: DEFAULT_WATER_LOW_PCT,       // umbral de aviso de tanque bajo
   batteryLowPct: DEFAULT_BATTERY_LOW_PCT,   // umbral de aviso de bateria baja
   pumpFlowMlMin: DEFAULT_PUMP_FLOW_ML_MIN,  // caudal para estimar el agua usada
-  plant: null,              // ficha de la planta identificada por IA (o null)
+  plant: null,              // ficha de la planta identificada por Antonio.ia (o null)
   // Origen de los datos: 'auto' (real en LAN, demo fuera), 'on' (siempre demo), 'off' (siempre real).
   demoMode: 'auto',
   // Clima por ubicacion (Open-Meteo). Requiere Internet; opcional.

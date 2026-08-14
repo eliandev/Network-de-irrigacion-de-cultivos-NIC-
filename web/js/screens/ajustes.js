@@ -159,7 +159,7 @@ export function mount(root) {
       <div class="btn-row mt">
         <button type="button" class="btn btn--ghost btn--small" id="set-plant-clear" hidden>Quitar planta</button>
       </div>
-      <p class="hint mt">Identifica tu planta por foto en la sección "Mi planta" (desde Inicio).</p>
+      <p class="hint mt">Identifica tu planta por foto con Antonio.ia en la sección "Mi planta" (desde Inicio).</p>
     </div>
 
     <!-- 4) Información del dispositivo -->

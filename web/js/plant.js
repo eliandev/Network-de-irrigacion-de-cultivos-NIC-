@@ -57,7 +57,7 @@ export const plant = {
   },
 
   /**
-   * Envía la imagen al servicio de IA.
+   * Envía la imagen a Antonio.ia (el servicio de identificación de plantas).
    * @returns {Promise<{ok:boolean, ficha?:object, source?:string, code?:string, message?:string}>}
    */
   async identify(sendDataUrl) {
@@ -73,11 +73,11 @@ export const plant = {
         return { ok: true, ficha: data.ficha, source: data.source || 'ai' };
       }
       if (res.status === 501 || data.error === 'not_configured') {
-        return { ok: false, code: 'not_configured', message: 'La IA no está configurada en el servidor.' };
+        return { ok: false, code: 'not_configured', message: 'Antonio.ia no está configurado en el servidor.' };
       }
       return { ok: false, code: data.error || 'error', message: data.message || 'No se pudo identificar la planta.' };
     } catch {
-      return { ok: false, code: 'network', message: 'No se pudo contactar el servicio de IA.' };
+      return { ok: false, code: 'network', message: 'No se pudo contactar a Antonio.ia.' };
     }
   },
 };

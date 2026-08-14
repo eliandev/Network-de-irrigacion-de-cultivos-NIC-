@@ -259,7 +259,7 @@ function renderPlant(root) {
     el.innerHTML = `
       <div class="card">
         <div class="card__header"><span class="card__title">${icon('sparkles', { size: 18 })} Mi planta</span></div>
-        <p class="soon-note">Identifica tu planta con una foto y obtén su ficha de cuidado (riego, humedad ideal…).</p>
+        <p class="soon-note">Identifica tu planta con una foto usando Antonio.ia y obtén su ficha de cuidado (riego, humedad ideal…).</p>
         <div class="btn-row mt">
           <button type="button" class="btn btn--primary btn--small" id="dash-plant-open">${icon('camera', { size: 16 })} Identificar planta</button>
         </div>

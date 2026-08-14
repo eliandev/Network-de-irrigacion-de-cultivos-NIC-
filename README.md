@@ -46,15 +46,15 @@ vercel --prod     # a producción
 
 La configuración ya está en [`vercel.json`](vercel.json): sirve `web/` como raíz y fija cabeceras correctas (service worker sin caché, tipo MIME del manifest y de los `.js`).
 
-### 🤖 IA de plantas — variable de entorno (opcional)
-El reconocimiento de plantas por foto usa una **función serverless** ([`api/identify.js`](api/identify.js)) que llama a **Groq** (GroqCloud, gratis, **sin tarjeta**) con un modelo de visión (Qwen3.6-27B). Para activarlo en Vercel:
+### 🤖 Antonio.ia (IA de plantas) — variable de entorno (opcional)
+**Antonio.ia** es el nombre del asistente de reconocimiento de plantas por foto. Por dentro usa una **función serverless** ([`api/identify.js`](api/identify.js)) que llama a **Groq** (GroqCloud, gratis, **sin tarjeta**) con un modelo de visión (Qwen3.6-27B). Para activarlo en Vercel:
 
 1. Crea una clave gratis en **[console.groq.com/keys](https://console.groq.com/keys)** (registro con email/Google, sin tarjeta).
 2. **Project → Settings → Environment Variables** → añade `GROQ_API_KEY` con esa clave (Production + Preview).
 3. *(Opcional)* Fuerza otro modelo con `GROQ_MODEL`. Por defecto la función recorre una lista de modelos de visión candidatos y usa el primero disponible (vigente ago-2026: `qwen/qwen3.6-27b`). Groq **depreca** modelos seguido: si todos fallaran, mira el vigente en [console.groq.com/docs/vision](https://console.groq.com/docs/vision) y ponlo en `GROQ_MODEL`.
 4. Redespliega.
 
-Límite gratis: ~30 peticiones/min y ~1000/día (suficiente para uso personal). Si no la configuras, el resto de la app funciona igual; solo la identificación mostrará "IA no configurada" (y en la demo local devuelve una ficha de ejemplo).
+Límite gratis: ~30 peticiones/min y ~1000/día (suficiente para uso personal). Si no la configuras, el resto de la app funciona igual; solo la identificación mostrará "Antonio.ia no está configurado" (y en la demo local devuelve una ficha de ejemplo).
 
 > **Nota:** los cuidados/humedad los genera el modelo (no una base botánica verificada), por eso la ficha incluye un nivel de **confianza** y un aviso.
 
@@ -63,7 +63,7 @@ Límite gratis: ~30 peticiones/min y ~1000/día (suficiente para uso personal). 
 - **Hardware real (ESP32-S3):** fuerza el WebSocket real.
 - **Demostración:** fuerza el simulador (para enseñar la UI en cualquier lugar).
 
-> El **clima** (Open-Meteo) y la **IA de plantas** usan Internet. El **GPS** del navegador funciona porque Vercel sirve por HTTPS. La app es responsive: **panel admin con barra lateral en escritorio** y barra inferior en móvil.
+> El **clima** (Open-Meteo) y **Antonio.ia** usan Internet. El **GPS** del navegador funciona porque Vercel sirve por HTTPS. La app es responsive: **panel admin con barra lateral en escritorio** y barra inferior en móvil.
 
 ---
 

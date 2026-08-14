@@ -1,6 +1,6 @@
 /**
- * NIC — Pantalla "Mi planta" (IA de reconocimiento por foto).
- * Identifica la especie con una foto y muestra su ficha (línea base de cuidado).
+ * NIC — Pantalla "Mi planta" (Antonio.ia, reconocimiento por foto).
+ * Antonio.ia identifica la especie con una foto y muestra su ficha (línea base de cuidado).
  * La humedad ideal de la ficha puede aplicarse como umbral de riego.
  */
 
@@ -24,11 +24,11 @@ export function mount(root) {
 
   root.innerHTML = `
     <h1 class="screen-title">Mi planta</h1>
-    <p class="screen-sub">Identifica tu planta y usa su ficha como referencia de cuidado.</p>
+    <p class="screen-sub">Identifica tu planta con Antonio.ia y usa su ficha como referencia de cuidado.</p>
 
     <div class="card">
-      <div class="card__header"><span class="card__title">${icon('sparkles', { size: 18 })} Reconocer por foto</span></div>
-      <p class="soon-note">Toma o sube una foto de la planta; la IA identifica la especie, su frecuencia de riego y su humedad ideal.</p>
+      <div class="card__header"><span class="card__title">${icon('sparkles', { size: 18 })} Antonio.ia — Reconocer por foto</span></div>
+      <p class="soon-note">Toma o sube una foto de la planta; Antonio.ia identifica la especie, su frecuencia de riego y su humedad ideal.</p>
       <input type="file" id="plant-file" accept="image/*" capture="environment" hidden />
       <div class="btn-row mt">
         <button type="button" class="btn btn--primary" id="plant-shoot">${icon('camera', { size: 16 })} Tomar / subir foto</button>
@@ -69,14 +69,14 @@ async function onFile(root, fileInput) {
     if (res.ok && res.ficha && res.ficha.es_planta) {
       plant.save(res.ficha, thumb); // dispara settings -> re-render
       status = 'idle';
-      toast(res.source === 'mock' ? 'Identificada (datos de ejemplo)' : 'Planta identificada', { type: 'ok' });
+      toast(res.source === 'mock' ? 'Identificada (datos de ejemplo)' : 'Planta identificada por Antonio.ia', { type: 'ok' });
     } else if (res.ok && res.ficha && !res.ficha.es_planta) {
       status = 'idle';
       errorMsg = 'No se detectó una planta en la foto. Prueba con otra imagen.';
     } else {
       status = 'idle';
       errorMsg = res.code === 'not_configured'
-        ? 'La identificación por IA aún no está configurada en el servidor (falta la clave). Funciona en la demo local y en Vercel una vez configurada.'
+        ? 'Antonio.ia aún no está configurado en el servidor (falta la clave). Funciona en la demo local y en Vercel una vez configurado.'
         : (res.message || 'No se pudo identificar la planta.');
     }
   } catch (e) {
@@ -92,7 +92,7 @@ function render(root) {
   const statusEl = root.querySelector('#plant-status');
   if (statusEl) {
     if (status === 'loading') {
-      statusEl.innerHTML = '<p class="empty-state">Analizando la foto con IA…</p>';
+      statusEl.innerHTML = '<p class="empty-state">Antonio.ia está analizando la foto…</p>';
     } else if (errorMsg) {
       statusEl.innerHTML = `<p class="soon-note">${icon('triangle-alert', { size: 14 })} ${escapeHtml(errorMsg)}</p>`;
     } else {
@@ -148,7 +148,7 @@ function fichaCard(saved) {
           : ''}
         <button type="button" class="btn btn--ghost btn--small" id="plant-remove">${icon('x', { size: 15 })} Quitar planta</button>
       </div>
-      <p class="hint mt">Ficha generada por IA como línea base. La humedad real la miden los sensores.</p>
+      <p class="hint mt">Ficha generada por Antonio.ia como línea base. La humedad real la miden los sensores.</p>
     </div>`;
 }
 
