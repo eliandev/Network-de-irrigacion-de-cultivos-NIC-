@@ -3,6 +3,9 @@
   "installCommand": "echo 'NIC: sin dependencias'",
   "buildCommand": "echo 'NIC: sitio estatico, sin build'",
   "outputDirectory": "web",
+  "redirects": [
+    { "source": "/mimata", "destination": "/mimata/", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/service-worker.js",
@@ -18,6 +21,24 @@
     },
     {
       "source": "/js/(.*)",
+      "headers": [
+        { "key": "Content-Type", "value": "text/javascript; charset=utf-8" }
+      ]
+    },
+    {
+      "source": "/mimata/service-worker.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/mimata/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json; charset=utf-8" }
+      ]
+    },
+    {
+      "source": "/mimata/js/(.*)",
       "headers": [
         { "key": "Content-Type", "value": "text/javascript; charset=utf-8" }
       ]

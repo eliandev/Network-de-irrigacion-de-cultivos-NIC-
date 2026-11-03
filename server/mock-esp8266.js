@@ -121,6 +121,23 @@ const SAMPLE_FICHA = {
   confianza: 'media',
 };
 
+// Ficha de ejemplo en voseo salvadoreño (app MiMata, locale:'sv').
+const SAMPLE_FICHA_SV = {
+  es_planta: true,
+  nombre_comun: 'Chipilín',
+  nombre_cientifico: 'Crotalaria longirostrata',
+  descripcion: 'Hierba bien nuestra: sus hojas cocidas van en tamales, pupusas y sopas. Ojo: las semillas y la raíz pueden ser tóxicas, así que mantenela lejos de niños y mascotas.',
+  frecuencia_riego: 'En época seca (nov–abr) regá cada 2 días; en la lluviosa (may–oct) basta con la lluvia, solo vigilá que no se encharque.',
+  humedad_ideal_pct: 55,
+  luz: 'Sol directo o media sombra; aguanta bien el sol fuerte.',
+  cuidados: [
+    'Cortá las puntas seguido para que se ponga frondoso.',
+    'Echale abono orgánico (gallinaza o compost) cada mes.',
+    'Revisá el envés de las hojas por si aparece pulgón.',
+  ],
+  confianza: 'media',
+};
+
 // ---------------------------------------------------------------------------
 // HTTP estatico (sirve la PWA desde /web)
 // ---------------------------------------------------------------------------
@@ -154,9 +171,11 @@ function serveStatic(req, res) {
       let body = '';
       req.on('data', (c) => { body += c; if (body.length > 12e6) req.destroy(); });
       req.on('end', () => {
+        let sv = false;
+        try { sv = String(JSON.parse(body).locale || '').toLowerCase() === 'sv'; } catch { /* noop */ }
         setTimeout(() => {
           res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
-            .end(JSON.stringify({ ficha: SAMPLE_FICHA, source: 'mock' }));
+            .end(JSON.stringify({ ficha: sv ? SAMPLE_FICHA_SV : SAMPLE_FICHA, source: 'mock' }));
         }, 700); // simula la latencia de la IA
       });
       return;
@@ -169,6 +188,19 @@ function serveStatic(req, res) {
     if (!filePath.startsWith(WEB_DIR)) {
       res.writeHead(403).end('Forbidden');
       return;
+    }
+    // Carpeta con su propio index.html (p. ej. /mimata/) -> servirlo, como hace Vercel.
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()
+      && fs.existsSync(path.join(filePath, 'index.html'))) {
+      // Sin barra final, las rutas relativas (./js/...) apuntarían a la raíz: redirigir.
+      // El Location se arma desde la ruta ya confinada a WEB_DIR (nunca desde la URL
+      // recibida), para no permitir redirecciones abiertas tipo "//otro-sitio.com".
+      if (!urlPath.endsWith('/')) {
+        const relDir = path.relative(WEB_DIR, filePath).split(path.sep).join('/');
+        res.writeHead(301, { Location: `/${relDir}/` }).end();
+        return;
+      }
+      filePath = path.join(filePath, 'index.html');
     }
     if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
       // Fallback SPA: servir index.html para rutas desconocidas.

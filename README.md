@@ -6,6 +6,8 @@ La app se comunica por **WebSocket** con un **ESP8266** (puente WiFi ↔ Serial)
 
 > Mientras no tengas el hardware, este repo incluye un **servidor mock del ESP8266** (Node, sin dependencias) que simula el Arduino para desarrollar y demostrar la app de inmediato.
 
+> 🌱 **El repo también contiene MiMata**, una app aparte de identificación de plantas tropicalizada a El Salvador y con voseo. Ver [MiMata](#-mimata--app-de-identificación-de-plantas-el-salvador).
+
 ---
 
 ## 🚀 Cómo ejecutarlo (demo con el mock)
@@ -67,6 +69,28 @@ Límite gratis: ~30 peticiones/min y ~1000/día (suficiente para uso personal). 
 
 ---
 
+## 🌱 MiMata — app de identificación de plantas (El Salvador)
+
+App **independiente** de NIC (su propio `index.html`, PWA, manifest y service worker) que vive en [`web/mimata/`](web/mimata/) y se publica en el mismo proyecto de Vercel bajo **`/mimata/`**. Se instala en el celular como app propia.
+
+- **Identificar:** tomás o subís una foto → la IA devuelve la ficha de la mata: nombre como se le conoce en El Salvador, nombre científico, usos, riego según **época seca (nov–abr) / lluviosa (may–oct)**, luz para el sol del trópico, humedad ideal del suelo y cuidados.
+- **Mis matas:** guardás tus matas (con apodo opcional, p. ej. "La del corredor") y consultás su ficha cuando querás.
+- **Voseo salvadoreño** en toda la interfaz y en las respuestas de la IA.
+
+**IA:** reutiliza la misma función [`api/identify.js`](api/identify.js) (Groq) — no hay que configurar nada extra. MiMata envía `locale: "sv"` y la función usa el prompt tropicalizado con voseo; sin ese flag responde en español neutro (como lo usa NIC).
+
+**Almacenamiento:** IndexedDB (base `mimata`), no localStorage: guarda fotos y, como comparte origen con NIC, en localStorage le comería la cuota (~5 MB) a la app de riego. Todo queda en el dispositivo.
+
+**Aislamiento entre apps (mismo origen):** cada service worker solo atiende su alcance, solo lee y escribe en **su propia caché** (nunca `caches.match()` global) y solo borra las suyas (`nic-*` / `mimata-*`). La caché de NIC pasó a `nic-shell-v8` para purgar la `v7`, donde el SW anterior pudo guardar archivos de `/mimata/`. `vercel.json` redirige `/mimata` → `/mimata/` (sin la barra, las rutas relativas cargarían el JS de NIC).
+
+> **Limitación conocida:** el alcance de NIC es `/` y contiene `/mimata/`. Si alguien tiene instalada **solo** NIC, algunos Android pueden abrir un enlace a `/mimata/` dentro de la ventana de NIC. Con las dos instaladas, cada una abre la suya. Si en el futuro se quiere separación total, MiMata puede pasar a su propio dominio/proyecto de Vercel (consumiendo `/api/identify` por CORS o con su propia copia de la función).
+
+**Probar en local:** `npm run dev` y abrir **http://localhost:8080/mimata/** (el mock devuelve una ficha de ejemplo en voseo).
+
+**Publicar cambios de MiMata:** el service worker usa **red primero**, así que con conexión cada visita trae la versión publicada (la caché es solo el respaldo sin conexión). Si agregás o renombrás archivos del shell, actualizá la lista `SHELL` y subí `CACHE = 'mimata-shell-vN'` en [`web/mimata/service-worker.js`](web/mimata/service-worker.js).
+
+---
+
 ## 🧱 Estructura del proyecto
 
 ```
@@ -81,7 +105,7 @@ NIC/
 │   ├── service-worker.js    Caché del app shell (uso offline)
 │   ├── assets/              logo.svg, icon.svg (gota de agua con brote, azul→verde)
 │   ├── css/styles.css       Sistema de diseño + layout de escritorio (panel admin)
-│   └── js/
+│   ├── js/
 │       ├── app.js           Bootstrap + router + shell (pill, banner, badge DEMO)
 │       ├── store.js         Estado central reactivo (pub/sub)
 │       ├── protocol.js      Constantes, conversiones y (de)serialización JSON
@@ -96,6 +120,11 @@ NIC/
 │       ├── icons.js         Set de íconos SVG outlined (sin emojis)
 │       ├── ui.js            Toasts + diálogo de confirmación
 │       └── screens/         dashboard · monitoreo · control · alertas · ajustes · planta
+│   └── mimata/              <-- App MiMata (independiente, solo Vercel; NO va al ESP32)
+│       ├── index.html · manifest.webmanifest · service-worker.js
+│       ├── assets/          logo/íconos (SVG + PNG para instalar en Android/iOS)
+│       ├── css/styles.css   Diseño propio (paleta tropical, claro/oscuro)
+│       └── js/              app (arranque) · route · views · identify (foto→IA) · store (IndexedDB) · icons · ui
 ├── vercel.json              Config de despliegue en Vercel (estático + funciones)
 └── package.json
 ```
@@ -178,7 +207,7 @@ El mock implementa ambos comportamientos para poder demostrarlos.
 ## 🚢 Despliegue al ESP8266 (producción, resumen)
 
 1. El firmware del ESP8266 (modo estación, STA) se une al router y publica `riego.local` por **mDNS**.
-2. Sube el contenido de `web/` a **LittleFS** y sírvelo por HTTP; expón el WebSocket en `/ws`.
+2. Sube el contenido de `web/` a **LittleFS** (sin la carpeta `web/mimata/`, que es otra app y solo vive en Vercel) y sírvelo por HTTP; expón el WebSocket en `/ws`.
 3. La PWA detecta el host automáticamente (mismo origen). Si `riego.local` no resuelve, fija la **IP manual** en **Ajustes**.
 4. ⚠️ **Hardware:** la línea **TX Arduino (5 V) → RX ESP (3.3 V)** requiere **divisor de voltaje** o conversor de nivel.
 

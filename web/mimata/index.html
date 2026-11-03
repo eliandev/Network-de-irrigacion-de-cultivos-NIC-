@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es-SV">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MiMata — Conocé tus matas</title>
+  <meta name="description" content="Tomale una foto a tu planta y MiMata te dice qué es y cómo cuidarla, pensado para el clima de El Salvador.">
+  <meta name="theme-color" content="#1a7f45" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1511" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="MiMata">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="topbar">
+    <a class="brand" href="#/identificar" aria-label="MiMata, ir al inicio">
+      <img class="brand__logo" src="./assets/logo.svg" alt="" width="36" height="36">
+      <span class="brand__text">
+        <span class="brand__name">MiMata</span>
+        <span class="brand__tag">Conocé tus matas</span>
+      </span>
+    </a>
+    <span class="season js-season"></span>
+    <nav class="topnav" aria-label="Secciones">
+      <a class="topnav__item" href="#/identificar" data-route="identificar"><span data-icon="camera" data-size="18"></span>Identificar</a>
+      <a class="topnav__item" href="#/mis-matas" data-route="mis-matas"><span data-icon="leaf" data-size="18"></span>Mis matas<span class="sr-only js-count-sr"></span><span class="badge js-count" aria-hidden="true" hidden></span></a>
+    </nav>
+  </header>
+
+  <!-- Región live persistente: anuncia "Analizando…", "Ya está lista la ficha…", errores. -->
+  <p id="sr-status" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+
+  <main id="main" class="main" tabindex="-1">
+    <noscript>
+      <p class="notice notice--warn">MiMata necesita JavaScript para funcionar. Activalo en tu navegador.</p>
+    </noscript>
+  </main>
+
+  <nav class="tabbar" aria-label="Secciones">
+    <a class="tabbar__item" href="#/identificar" data-route="identificar">
+      <span data-icon="camera"></span><span>Identificar</span>
+    </a>
+    <a class="tabbar__item" href="#/mis-matas" data-route="mis-matas">
+      <span class="tabbar__icon"><span data-icon="leaf"></span><span class="badge js-count" aria-hidden="true" hidden></span></span>
+      <span>Mis matas<span class="sr-only js-count-sr"></span></span>
+    </a>
+  </nav>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

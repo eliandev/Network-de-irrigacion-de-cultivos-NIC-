@@ -101,6 +101,39 @@ const PROMPT = [
   'Responde solo con el JSON.',
 ].join(' ');
 
+// Variante tropicalizada a El Salvador con voseo (la usa la app MiMata enviando
+// locale:'sv'). Mismo esquema JSON que la neutra: el cliente parsea igual.
+const SYSTEM_SV = 'Sos un botánico salvadoreño experto en plantas tropicales de El Salvador '
+  + 'y Centroamérica. Respondés SIEMPRE con un único objeto JSON válido, sin texto adicional '
+  + 'ni markdown. Escribís en español salvadoreño con VOSEO, con un tono cercano, claro y '
+  + 'práctico, como quien le explica a un vecino. Voseo correcto: imperativo "regá", "poné", '
+  + '"tené", "cuidá", "revisá", "cortá", "echale"; presente "tenés", "podés", "necesitás". '
+  + 'Nunca uses tuteo ("tú", "tienes", "riega", "pon") ni usted ("riegue", "coloque", "usted").';
+
+const STRICT_SUFFIX_SV = ' Empezá tu respuesta directamente con «{» y terminala con «}». '
+  + 'No incluyás absolutamente nada fuera del objeto JSON (ni razonamiento, ni ```).';
+
+const PROMPT_SV = [
+  'Identificá la planta de la foto y devolvé un objeto JSON con EXACTAMENTE estas claves:',
+  '"es_planta" (boolean),',
+  '"nombre_comun" (string: el nombre con que se le conoce en El Salvador; si tiene otro nombre',
+  'común en Centroamérica, agregalo entre paréntesis),',
+  '"nombre_cientifico" (string),',
+  '"descripcion" (string breve: qué es, usos comunes en El Salvador —cocina, medicina popular,',
+  'ornato, sombra— y si es tóxica para niños o mascotas),',
+  '"frecuencia_riego" (string: pensá en el clima cálido de El Salvador; distinguí la época seca',
+  '(nov–abr) de la lluviosa (may–oct)),',
+  '"humedad_ideal_pct" (entero 0–100, humedad de suelo ideal),',
+  '"luz" (string: sol directo, media sombra o sombra, pensando en el sol fuerte del trópico),',
+  '"cuidados" (array de 2 a 4 consejos prácticos en voseo, p. ej. abono, plagas comunes, poda,',
+  'maceta o tierra) y "confianza" ("alta" | "media" | "baja").',
+  'Las claves JSON van EXACTAMENTE como están escritas aquí (no las traduzcás ni les cambiés',
+  'nada); solo los valores de texto van en español salvadoreño con voseo.',
+  'Si la imagen NO muestra una planta, poné es_planta=false,',
+  'confianza="baja", humedad_ideal_pct=0, cuidados=[] y el resto con "—".',
+  'Respondé solo con el JSON.',
+].join(' ');
+
 async function readJson(req) {
   if (req.body && typeof req.body === 'object') return req.body;
   let raw = '';
@@ -111,16 +144,19 @@ async function readJson(req) {
 /** Construye el body de la Chat Completions de Groq para un intento concreto. */
 function buildBody(model, dataUrl, opts) {
   const o = opts || {};
+  const sv = o.locale === 'sv'; // MiMata: El Salvador + voseo
+  const system = (sv ? SYSTEM_SV : SYSTEM)
+    + (o.strictStart ? (sv ? STRICT_SUFFIX_SV : STRICT_SUFFIX) : '');
   const body = {
     model,
     temperature: o.temperature != null ? o.temperature : 0.2,
     max_tokens: o.maxTokens || 2048,
     messages: [
-      { role: 'system', content: SYSTEM + (o.strictStart ? STRICT_SUFFIX : '') },
+      { role: 'system', content: system },
       {
         role: 'user',
         content: [
-          { type: 'text', text: PROMPT },
+          { type: 'text', text: sv ? PROMPT_SV : PROMPT },
           { type: 'image_url', image_url: { url: dataUrl } },
         ],
       },
@@ -185,11 +221,13 @@ export default async function handler(req, res) {
     return;
   }
 
-  let image; let mediaType;
+  let image; let mediaType; let locale = '';
   try {
     const data = await readJson(req);
     image = String(data.image || '');
     mediaType = String(data.mediaType || 'image/jpeg');
+    // 'sv' = prompt tropicalizado a El Salvador con voseo (MiMata). Por defecto, neutro (NIC).
+    locale = String(data.locale || '').toLowerCase() === 'sv' ? 'sv' : '';
     // La API espera un data URL completo; lo reconstruimos si vino base64 puro.
     if (!/^data:/.test(image) && image) image = `data:${mediaType};base64,${image}`;
   } catch {
@@ -213,7 +251,7 @@ export default async function handler(req, res) {
       let modelGone = false;
 
       for (let ai = 0; ai < ATTEMPTS.length; ai += 1) {
-        const opts = ATTEMPTS[ai];
+        const opts = { ...ATTEMPTS[ai], locale };
         let r = await callGroq(apiKey, model, image, opts);
         let detail = r.ok ? '' : await r.text().catch(() => '');
 
