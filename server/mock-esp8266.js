@@ -422,6 +422,10 @@ server.listen(PORT, HOST, () => {
   console.log('  Ctrl+C para detener.');
 });
 
+// MiMata es opcional: si su puerto está ocupado, se avisa y NIC sigue en pie.
+mimataServer.on('error', (err) => {
+  console.warn(`  MiMata   : no se pudo abrir el puerto ${MIMATA_PORT} (${err.code}); NIC sigue en ${PORT}. Usa MIMATA_PORT para otro puerto.`);
+});
 mimataServer.listen(MIMATA_PORT, HOST, () => {
   console.log(`  MiMata   : http://localhost:${MIMATA_PORT}`);
 });

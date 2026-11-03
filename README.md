@@ -85,9 +85,10 @@ App **independiente** de NIC que vive en [`mimata/`](mimata/) y se publica en **
 1. Proyecto de Vercel importado de este mismo repo con **Root Directory = `mimata`** (Framework preset: Other). La config está en [`mimata/vercel.json`](mimata/vercel.json): sirve `mimata/public/` y fija las cabeceras del service worker, el manifest y los `.js`.
 2. Dejá activada la opción *Include files outside the root directory in the Build Step* (viene activada por defecto): la función importa `../../api/identify.js`.
 3. **Settings → Environment Variables** → `GROQ_API_KEY` (Production + Preview). Puede ser la misma clave que usa NIC; ojo que el límite gratis de Groq se comparte entre las dos apps.
-4. Cada push construye los dos proyectos: NIC (raíz del repo) y MiMata (`mimata/`).
+4. Las variables solo aplican a deployments **nuevos**: después de agregarla, hacé un deploy nuevo de producción (merge/push a `main`, o *Redeploy* del deployment de producción **más reciente**, nunca de uno viejo).
+5. Cada push construye los dos proyectos: NIC (raíz del repo) y MiMata (`mimata/`). Solo `main` publica en producción; las demás ramas generan *Preview*. (Ojo: el **primer** deploy de un proyecto nuevo de Vercel sale a producción aunque venga de otra rama.)
 
-**Probar en local:** `npm run dev` y abrir **http://localhost:8081** (el mock sirve NIC en el 8080 y MiMata en el 8081, cada una en su origen, como en Vercel; devuelve una ficha de ejemplo en voseo).
+**Probar en local:** `npm run dev` y abrir **http://localhost:8081** (el mock sirve NIC en el 8080 y MiMata en el 8081, cada una en su origen, como en Vercel; devuelve una ficha de ejemplo en voseo). Los puertos se cambian con `PORT` y `MIMATA_PORT`; si el de MiMata está ocupado, el mock avisa y NIC sigue funcionando.
 
 **Publicar cambios de MiMata:** el service worker usa **red primero**, así que con conexión cada visita trae la versión publicada (la caché es solo el respaldo sin conexión). Si agregás o renombrás archivos del shell, actualizá la lista `SHELL` y subí `CACHE = 'mimata-shell-vN'` en [`mimata/public/service-worker.js`](mimata/public/service-worker.js).
 
