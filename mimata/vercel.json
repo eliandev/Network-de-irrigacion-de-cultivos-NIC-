@@ -1,8 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "echo 'MiMata: sin dependencias'",
+  "installCommand": "npm install",
   "buildCommand": "echo 'MiMata: sitio estatico, sin build'",
   "outputDirectory": "public",
+  "functions": {
+    "api/identify.js": { "maxDuration": 60 }
+  },
   "headers": [
     {
       "source": "/service-worker.js",

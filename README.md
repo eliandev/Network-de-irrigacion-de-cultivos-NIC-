@@ -77,18 +77,18 @@ App **independiente** de NIC que vive en [`mimata/`](mimata/) y se publica en **
 - **Mis matas:** guardás tus matas (con apodo opcional, p. ej. "La del corredor") y consultás su ficha cuando querás.
 - **Voseo salvadoreño** en toda la interfaz y en las respuestas de la IA.
 
-**IA:** [`mimata/api/identify.js`](mimata/api/identify.js) reexporta la misma función de NIC ([`api/identify.js`](api/identify.js), Groq), así que la lógica no se duplica. MiMata envía `locale: "sv"` y la función usa el prompt tropicalizado con voseo; sin ese flag responde en español neutro (como lo usa NIC).
+**IA:** [`mimata/api/identify.js`](mimata/api/identify.js) llama a **Claude** (visión + salidas estructuradas, que garantizan el JSON de la ficha) con el SDK oficial `@anthropic-ai/sdk`. El prompt está tropicalizado a El Salvador y en voseo. Modelo por defecto: `claude-opus-5-5`; si querés gastar bastante menos, poné `ANTHROPIC_MODEL=claude-haiku-5-5`. NIC sigue con su propia función ([`api/identify.js`](api/identify.js), Groq).
 
 **Almacenamiento:** IndexedDB (base `mimata`), no localStorage: guarda fotos, y localStorage (~5 MB) se llenaría con unas pocas decenas. Todo queda en el dispositivo.
 
 **Deploy en Vercel (proyecto aparte):**
-1. Proyecto de Vercel importado de este mismo repo con **Root Directory = `mimata`** (Framework preset: Other). La config está en [`mimata/vercel.json`](mimata/vercel.json): sirve `mimata/public/` y fija las cabeceras del service worker, el manifest y los `.js`.
-2. Dejá activada la opción *Include files outside the root directory in the Build Step* (viene activada por defecto): la función importa `../../api/identify.js`.
-3. **Settings → Environment Variables** → `GROQ_API_KEY` (Production + Preview). Puede ser la misma clave que usa NIC; ojo que el límite gratis de Groq se comparte entre las dos apps.
+1. Proyecto de Vercel importado de este mismo repo con **Root Directory = `mimata`** (Framework preset: Other). La config está en [`mimata/vercel.json`](mimata/vercel.json): instala las dependencias (`npm install`), sirve `mimata/public/`, le da hasta 60 s a la función y fija las cabeceras del service worker, el manifest y los `.js`.
+2. **Settings → Environment Variables** → `ANTHROPIC_API_KEY` (Production + Preview), con una clave creada en [platform.claude.com/settings/keys](https://platform.claude.com/settings/keys) **asignada a un workspace** (si no, la API exige la cabecera `anthropic-workspace-id`). Opcional: `ANTHROPIC_MODEL`.
+3. El endpoint es público y cada foto consume saldo: poné un **límite de gasto mensual** en [Billing](https://platform.claude.com/settings/billing).
 4. Las variables solo aplican a deployments **nuevos**: después de agregarla, hacé un deploy nuevo de producción (merge/push a `main`, o *Redeploy* del deployment de producción **más reciente**, nunca de uno viejo).
 5. Cada push construye los dos proyectos: NIC (raíz del repo) y MiMata (`mimata/`). Solo `main` publica en producción; las demás ramas generan *Preview*. (Ojo: el **primer** deploy de un proyecto nuevo de Vercel sale a producción aunque venga de otra rama.)
 
-**Probar en local:** `npm run dev` y abrir **http://localhost:8081** (el mock sirve NIC en el 8080 y MiMata en el 8081, cada una en su origen, como en Vercel; devuelve una ficha de ejemplo en voseo). Los puertos se cambian con `PORT` y `MIMATA_PORT`; si el de MiMata está ocupado, el mock avisa y NIC sigue funcionando.
+**Probar en local:** `npm run dev` y abrir **http://localhost:8081** (el mock sirve NIC en el 8080 y MiMata en el 8081, cada una en su origen, como en Vercel). Sin clave, la identificación devuelve una ficha de ejemplo en voseo. Para probar **Claude de verdad**: corré una vez `npm install` dentro de `mimata/`, copiá [`mimata/.env.example`](mimata/.env.example) como `mimata/.env.local` o `mimata/.env` (git ignora ambos), pegá tu `ANTHROPIC_API_KEY` y reiniciá el mock; al arrancar, la consola dice `MiMata IA: Claude real`. Los puertos se cambian con `PORT` y `MIMATA_PORT`; si el de MiMata está ocupado, el mock avisa y NIC sigue funcionando.
 
 **Publicar cambios de MiMata:** el service worker usa **red primero**, así que con conexión cada visita trae la versión publicada (la caché es solo el respaldo sin conexión). Si agregás o renombrás archivos del shell, actualizá la lista `SHELL` y subí `CACHE = 'mimata-shell-vN'` en [`mimata/public/service-worker.js`](mimata/public/service-worker.js).
 
@@ -124,7 +124,8 @@ NIC/
 │       ├── ui.js            Toasts + diálogo de confirmación
 │       └── screens/         dashboard · monitoreo · control · alertas · ajustes · planta
 ├── mimata/                  <-- App MiMata (independiente, su propio proyecto de Vercel; NO va al ESP32)
-│   ├── api/identify.js      Reexporta la función de IA de NIC (el cliente manda locale:'sv' → voseo)
+│   ├── api/identify.js      IA de MiMata: Claude (SDK oficial), ficha en voseo
+│   ├── .env.example         Variables de la IA (copiar a .env.local, que git ignora)
 │   ├── public/              Lo que se publica
 │   │   ├── index.html · manifest.webmanifest · service-worker.js
 │   │   ├── assets/          logo/íconos (SVG + PNG para instalar en Android/iOS)

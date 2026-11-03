@@ -35,6 +35,17 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
 const MIMATA_PORT = process.env.MIMATA_PORT ? Number(process.env.MIMATA_PORT) : 8081;
 const HOST = process.env.HOST || '0.0.0.0';
 
+// IA real de MiMata en local: si existe mimata/.env.local o mimata/.env (ver
+// mimata/.env.example) se cargan sus variables y /api/identify del puerto de
+// MiMata llama a la misma función que corre en Vercel (Claude). Sin ellos, ficha
+// de ejemplo. loadEnvFile no pisa variables ya definidas: .env.local gana a .env.
+for (const name of ['.env.local', '.env']) {
+  const file = path.resolve(__dirname, '..', 'mimata', name);
+  if (!fs.existsSync(file)) continue;
+  if (typeof process.loadEnvFile === 'function') process.loadEnvFile(file);
+  else console.warn(`  mimata/${name} requiere Node 20.12+ (o exporta ANTHROPIC_API_KEY a mano).`);
+}
+
 // ---------------------------------------------------------------------------
 // Estado simulado del Arduino (lazo cerrado)
 // ---------------------------------------------------------------------------
@@ -143,6 +154,21 @@ const SAMPLE_FICHA_SV = {
   confianza: 'media',
 };
 
+// MiMata con IA real: la función se importa bajo demanda, así el mock no necesita
+// el SDK (npm install en mimata/) mientras no haya clave.
+let mimataIdentify = null;
+async function identifyWithClaude(req, res) {
+  try {
+    mimataIdentify ??= (await import('../mimata/api/identify.js')).default;
+    await mimataIdentify(req, res);
+  } catch (err) {
+    console.error(`[mimata] /api/identify: ${err.message}`);
+    if (res.headersSent) { if (!res.writableEnded) res.end(); return; }
+    res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' })
+      .end(JSON.stringify({ error: 'mock', message: `¿Corriste "npm install" en mimata/? ${err.message}` }));
+  }
+}
+
 // ---------------------------------------------------------------------------
 // HTTP estatico (sirve la PWA desde /web)
 // ---------------------------------------------------------------------------
@@ -165,8 +191,12 @@ function serveStatic(req, res, rootDir = WEB_DIR) {
   try {
     const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
 
-    // Endpoint de IA (maqueta local): devuelve una ficha de ejemplo. En Vercel,
-    // este mismo endpoint lo atiende la funcion serverless que llama a Claude.
+    // Endpoint de IA. MiMata con ANTHROPIC_API_KEY: la función real (Claude).
+    // Si no, maqueta local con una ficha de ejemplo (en Vercel, NIC usa Groq).
+    if (urlPath === '/api/identify' && rootDir === MIMATA_DIR && process.env.ANTHROPIC_API_KEY) {
+      identifyWithClaude(req, res);
+      return;
+    }
     if (urlPath === '/api/identify') {
       if (req.method !== 'POST') {
         res.writeHead(405, { 'Content-Type': 'application/json; charset=utf-8' })
@@ -428,4 +458,7 @@ mimataServer.on('error', (err) => {
 });
 mimataServer.listen(MIMATA_PORT, HOST, () => {
   console.log(`  MiMata   : http://localhost:${MIMATA_PORT}`);
+  console.log(process.env.ANTHROPIC_API_KEY
+    ? `  MiMata IA: Claude real (${process.env.ANTHROPIC_MODEL || 'claude-opus-5-5'}); cada foto consume saldo`
+    : '  MiMata IA: ficha de ejemplo (sin ANTHROPIC_API_KEY en mimata/.env.local ni mimata/.env)');
 });
