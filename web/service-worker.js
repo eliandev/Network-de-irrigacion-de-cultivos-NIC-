@@ -4,8 +4,7 @@
  * WebSocket (no se cachea); aqui solo gestionamos los recursos estaticos.
  */
 
-// v8: purga la v7, en la que el SW anterior pudo guardar archivos de /mimata/.
-const CACHE = 'nic-shell-v8';
+const CACHE = 'nic-shell-v7';
 const SHELL = [
   './',
   './index.html',
@@ -35,20 +34,18 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  // Sin .catch: si el precache falla, la instalación se aborta y se conserva el
-  // SW y la caché anteriores (en vez de activar uno con la caché vacía).
   event.waitUntil(
     caches.open(CACHE)
       .then((cache) => cache.addAll(SHELL))
       .then(() => self.skipWaiting())
+      .catch((err) => console.warn('[sw] precache parcial', err))
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      // Solo cachés propias ("nic-*"): el origen se comparte con MiMata (/mimata/).
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('nic-') && k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -59,13 +56,10 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-  // MiMata (/mimata/) es otra app con su propio service worker: no la tocamos.
-  if (url.pathname.startsWith('/mimata/') || url.pathname === '/mimata') return;
 
-  // Estrategia: cache-first con actualizacion en segundo plano. Se busca SOLO en
-  // la caché propia: caches.match() global podría devolver copias de otra app.
+  // Estrategia: cache-first con actualizacion en segundo plano.
   event.respondWith(
-    caches.match(req, { cacheName: CACHE }).then((cached) => {
+    caches.match(req).then((cached) => {
       const network = fetch(req)
         .then((res) => {
           if (res && res.status === 200 && res.type === 'basic') {
@@ -74,7 +68,7 @@ self.addEventListener('fetch', (event) => {
           }
           return res;
         })
-        .catch(() => cached || caches.match('./index.html', { cacheName: CACHE }));
+        .catch(() => cached || caches.match('./index.html'));
       return cached || network;
     })
   );

@@ -5,6 +5,7 @@
  * desarrollar y demostrar la PWA SIN el hardware real.
  *
  *   - Sirve los archivos estaticos de la PWA (carpeta /web) por HTTP.
+ *   - Sirve MiMata (carpeta /mimata/public) en su propio puerto (8081).
  *   - Expone un servidor WebSocket en la ruta /ws (RFC 6455, hecho a mano).
  *   - Simula el control de riego de lazo cerrado del Arduino:
  *        * humedad como caminata aleatoria (el suelo se seca / se humedece),
@@ -27,7 +28,11 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = path.resolve(__dirname, '..', 'web');
+// MiMata (app aparte): en Vercel es otro proyecto con su propio dominio, así que
+// aquí también va en su propio puerto (otro origen), con el mismo /api/identify.
+const MIMATA_DIR = path.resolve(__dirname, '..', 'mimata', 'public');
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
+const MIMATA_PORT = process.env.MIMATA_PORT ? Number(process.env.MIMATA_PORT) : 8081;
 const HOST = process.env.HOST || '0.0.0.0';
 
 // ---------------------------------------------------------------------------
@@ -156,7 +161,7 @@ const MIME = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-function serveStatic(req, res) {
+function serveStatic(req, res, rootDir = WEB_DIR) {
   try {
     const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
 
@@ -184,27 +189,14 @@ function serveStatic(req, res) {
     let rel = urlPath === '/' ? '/index.html' : urlPath;
     // Evitar path traversal.
     const safe = path.normalize(rel).replace(/^(\.\.[/\\])+/, '');
-    let filePath = path.join(WEB_DIR, safe);
-    if (!filePath.startsWith(WEB_DIR)) {
+    let filePath = path.join(rootDir, safe);
+    if (!filePath.startsWith(rootDir)) {
       res.writeHead(403).end('Forbidden');
       return;
     }
-    // Carpeta con su propio index.html (p. ej. /mimata/) -> servirlo, como hace Vercel.
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()
-      && fs.existsSync(path.join(filePath, 'index.html'))) {
-      // Sin barra final, las rutas relativas (./js/...) apuntarían a la raíz: redirigir.
-      // El Location se arma desde la ruta ya confinada a WEB_DIR (nunca desde la URL
-      // recibida), para no permitir redirecciones abiertas tipo "//otro-sitio.com".
-      if (!urlPath.endsWith('/')) {
-        const relDir = path.relative(WEB_DIR, filePath).split(path.sep).join('/');
-        res.writeHead(301, { Location: `/${relDir}/` }).end();
-        return;
-      }
-      filePath = path.join(filePath, 'index.html');
-    }
     if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
       // Fallback SPA: servir index.html para rutas desconocidas.
-      filePath = path.join(WEB_DIR, 'index.html');
+      filePath = path.join(rootDir, 'index.html');
     }
     if (!fs.existsSync(filePath)) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
@@ -225,6 +217,7 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer(serveStatic);
+const mimataServer = http.createServer((req, res) => serveStatic(req, res, MIMATA_DIR));
 
 // ---------------------------------------------------------------------------
 // WebSocket (RFC 6455) implementado a mano — solo frames de texto pequeños
@@ -427,4 +420,8 @@ server.listen(PORT, HOST, () => {
   console.log(`  HTTP/PWA : http://localhost:${PORT}`);
   console.log(`  WebSocket: ws://localhost:${PORT}/ws`);
   console.log('  Ctrl+C para detener.');
+});
+
+mimataServer.listen(MIMATA_PORT, HOST, () => {
+  console.log(`  MiMata   : http://localhost:${MIMATA_PORT}`);
 });

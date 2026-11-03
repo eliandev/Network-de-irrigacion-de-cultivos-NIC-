@@ -2,8 +2,8 @@
  * MiMata — Captura de la foto y consulta a la IA.
  * Reduce la foto en el navegador (menos datos y menos tokens de visión) y la
  * manda a /api/identify con locale:'sv' para recibir la ficha tropicalizada a
- * El Salvador y en voseo. El endpoint es la misma función serverless (Groq)
- * que ya usa NIC; sin el flag, responde en español neutro.
+ * El Salvador y en voseo. El endpoint (mimata/api/identify.js) reutiliza la
+ * función serverless de NIC (Groq); sin el flag, responde en español neutro.
  */
 
 const ENDPOINT = '/api/identify';

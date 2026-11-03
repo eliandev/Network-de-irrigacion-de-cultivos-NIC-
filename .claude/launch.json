@@ -6,6 +6,10 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["server/mock-esp8266.js"],
       "port": 8080
+    },
+    {
+      "name": "mimata",
+      "url": "http://localhost:8081"
     }
   ]
 }

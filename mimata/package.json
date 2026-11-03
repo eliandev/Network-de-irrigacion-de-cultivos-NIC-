@@ -1,0 +1,11 @@
+{
+  "name": "mimata",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MiMata — PWA de identificación de plantas para El Salvador, con voseo. Proyecto de Vercel aparte (Root Directory: mimata).",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}

@@ -1,9 +1,9 @@
 /**
  * MiMata — Service Worker (PWA).
- * Alcance: /mimata/ (el de este archivo). Comparte origen con NIC, así que:
- *   - solo atiende peticiones dentro de su alcance (nunca /api ni la app de riego);
- *   - solo lee y escribe en SU caché (cache.match, no caches.match global: el SW
- *     viejo de NIC pudo guardar copias de /mimata/ en la suya);
+ * Alcance: el de este archivo ("/" en su propio proyecto de Vercel). Por si
+ * algún día vuelve a compartir origen con otra app:
+ *   - solo atiende peticiones dentro de su alcance;
+ *   - solo lee y escribe en SU caché (cache.match, no caches.match global);
  *   - al activarse solo borra cachés propias ("mimata-*").
  *
  * Estrategia: RED PRIMERO para todo (HTML, JS, CSS, íconos). Así cada visita
@@ -31,7 +31,7 @@ const SHELL = [
   './js/ui.js',
 ];
 
-const SCOPE_PATH = new URL(self.registration.scope).pathname; // '/mimata/'
+const SCOPE_PATH = new URL(self.registration.scope).pathname; // '/'
 
 self.addEventListener('install', (event) => {
   // Sin .catch: si el precache falla se aborta la instalación y se conserva la

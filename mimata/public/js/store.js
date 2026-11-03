@@ -2,9 +2,8 @@
  * MiMata — Almacén local de "Mis matas" (IndexedDB).
  * ---------------------------------------------------------------------------
  * ¿Por qué IndexedDB y no localStorage? Guardamos la foto de cada mata, y
- * localStorage tiene ~5 MB por origen. MiMata comparte origen con NIC (la app
- * de riego), así que en localStorage le comeríamos el espacio a NIC. IndexedDB
- * tiene mucha más cuota y una base propia ('mimata'), aislada de la de NIC.
+ * localStorage tiene ~5 MB por origen: se llenaría con unas pocas decenas de
+ * fotos. IndexedDB tiene mucha más cuota y una base propia ('mimata').
  *
  * Si IndexedDB no está disponible (algunos modos privados), funciona en
  * memoria y la UI avisa que no se va a guardar al cerrar.
