@@ -5,6 +5,7 @@
  * desarrollar y demostrar la PWA SIN el hardware real.
  *
  *   - Sirve los archivos estaticos de la PWA (carpeta /web) por HTTP.
+ *   - Sirve MiMata (carpeta /mimata/public) en su propio puerto (8081).
  *   - Expone un servidor WebSocket en la ruta /ws (RFC 6455, hecho a mano).
  *   - Simula el control de riego de lazo cerrado del Arduino:
  *        * humedad como caminata aleatoria (el suelo se seca / se humedece),
@@ -27,8 +28,23 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = path.resolve(__dirname, '..', 'web');
+// MiMata (app aparte): en Vercel es otro proyecto con su propio dominio, así que
+// aquí también va en su propio puerto (otro origen), con el mismo /api/identify.
+const MIMATA_DIR = path.resolve(__dirname, '..', 'mimata', 'public');
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
+const MIMATA_PORT = process.env.MIMATA_PORT ? Number(process.env.MIMATA_PORT) : 8081;
 const HOST = process.env.HOST || '0.0.0.0';
+
+// IA real de MiMata en local: si existe mimata/.env.local o mimata/.env (ver
+// mimata/.env.example) se cargan sus variables y /api/identify del puerto de
+// MiMata llama a la misma función que corre en Vercel (Claude). Sin ellos, ficha
+// de ejemplo. loadEnvFile no pisa variables ya definidas: .env.local gana a .env.
+for (const name of ['.env.local', '.env']) {
+  const file = path.resolve(__dirname, '..', 'mimata', name);
+  if (!fs.existsSync(file)) continue;
+  if (typeof process.loadEnvFile === 'function') process.loadEnvFile(file);
+  else console.warn(`  mimata/${name} requiere Node 20.12+ (o exporta ANTHROPIC_API_KEY a mano).`);
+}
 
 // ---------------------------------------------------------------------------
 // Estado simulado del Arduino (lazo cerrado)
@@ -121,6 +137,38 @@ const SAMPLE_FICHA = {
   confianza: 'media',
 };
 
+// Ficha de ejemplo en voseo salvadoreño (app MiMata, locale:'sv').
+const SAMPLE_FICHA_SV = {
+  es_planta: true,
+  nombre_comun: 'Chipilín',
+  nombre_cientifico: 'Crotalaria longirostrata',
+  descripcion: 'Hierba bien nuestra: sus hojas cocidas van en tamales, pupusas y sopas. Ojo: las semillas y la raíz pueden ser tóxicas, así que mantenela lejos de niños y mascotas.',
+  frecuencia_riego: 'En época seca (nov–abr) regá cada 2 días; en la lluviosa (may–oct) basta con la lluvia, solo vigilá que no se encharque.',
+  humedad_ideal_pct: 55,
+  luz: 'Sol directo o media sombra; aguanta bien el sol fuerte.',
+  cuidados: [
+    'Cortá las puntas seguido para que se ponga frondoso.',
+    'Echale abono orgánico (gallinaza o compost) cada mes.',
+    'Revisá el envés de las hojas por si aparece pulgón.',
+  ],
+  confianza: 'media',
+};
+
+// MiMata con IA real: la función se importa bajo demanda, así el mock no necesita
+// el SDK (npm install en mimata/) mientras no haya clave.
+let mimataIdentify = null;
+async function identifyWithClaude(req, res) {
+  try {
+    mimataIdentify ??= (await import('../mimata/api/identify.js')).default;
+    await mimataIdentify(req, res);
+  } catch (err) {
+    console.error(`[mimata] /api/identify: ${err.message}`);
+    if (res.headersSent) { if (!res.writableEnded) res.end(); return; }
+    res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' })
+      .end(JSON.stringify({ error: 'mock', message: `¿Corriste "npm install" en mimata/? ${err.message}` }));
+  }
+}
+
 // ---------------------------------------------------------------------------
 // HTTP estatico (sirve la PWA desde /web)
 // ---------------------------------------------------------------------------
@@ -139,12 +187,16 @@ const MIME = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-function serveStatic(req, res) {
+function serveStatic(req, res, rootDir = WEB_DIR) {
   try {
     const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
 
-    // Endpoint de IA (maqueta local): devuelve una ficha de ejemplo. En Vercel,
-    // este mismo endpoint lo atiende la funcion serverless que llama a Claude.
+    // Endpoint de IA. MiMata con ANTHROPIC_API_KEY: la función real (Claude).
+    // Si no, maqueta local con una ficha de ejemplo (en Vercel, NIC usa Groq).
+    if (urlPath === '/api/identify' && rootDir === MIMATA_DIR && process.env.ANTHROPIC_API_KEY) {
+      identifyWithClaude(req, res);
+      return;
+    }
     if (urlPath === '/api/identify') {
       if (req.method !== 'POST') {
         res.writeHead(405, { 'Content-Type': 'application/json; charset=utf-8' })
@@ -154,9 +206,11 @@ function serveStatic(req, res) {
       let body = '';
       req.on('data', (c) => { body += c; if (body.length > 12e6) req.destroy(); });
       req.on('end', () => {
+        let sv = false;
+        try { sv = String(JSON.parse(body).locale || '').toLowerCase() === 'sv'; } catch { /* noop */ }
         setTimeout(() => {
           res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
-            .end(JSON.stringify({ ficha: SAMPLE_FICHA, source: 'mock' }));
+            .end(JSON.stringify({ ficha: sv ? SAMPLE_FICHA_SV : SAMPLE_FICHA, source: 'mock' }));
         }, 700); // simula la latencia de la IA
       });
       return;
@@ -165,14 +219,14 @@ function serveStatic(req, res) {
     let rel = urlPath === '/' ? '/index.html' : urlPath;
     // Evitar path traversal.
     const safe = path.normalize(rel).replace(/^(\.\.[/\\])+/, '');
-    let filePath = path.join(WEB_DIR, safe);
-    if (!filePath.startsWith(WEB_DIR)) {
+    let filePath = path.join(rootDir, safe);
+    if (!filePath.startsWith(rootDir)) {
       res.writeHead(403).end('Forbidden');
       return;
     }
     if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
       // Fallback SPA: servir index.html para rutas desconocidas.
-      filePath = path.join(WEB_DIR, 'index.html');
+      filePath = path.join(rootDir, 'index.html');
     }
     if (!fs.existsSync(filePath)) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
@@ -193,6 +247,7 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer(serveStatic);
+const mimataServer = http.createServer((req, res) => serveStatic(req, res, MIMATA_DIR));
 
 // ---------------------------------------------------------------------------
 // WebSocket (RFC 6455) implementado a mano — solo frames de texto pequeños
@@ -395,4 +450,15 @@ server.listen(PORT, HOST, () => {
   console.log(`  HTTP/PWA : http://localhost:${PORT}`);
   console.log(`  WebSocket: ws://localhost:${PORT}/ws`);
   console.log('  Ctrl+C para detener.');
+});
+
+// MiMata es opcional: si su puerto está ocupado, se avisa y NIC sigue en pie.
+mimataServer.on('error', (err) => {
+  console.warn(`  MiMata   : no se pudo abrir el puerto ${MIMATA_PORT} (${err.code}); NIC sigue en ${PORT}. Usa MIMATA_PORT para otro puerto.`);
+});
+mimataServer.listen(MIMATA_PORT, HOST, () => {
+  console.log(`  MiMata   : http://localhost:${MIMATA_PORT}`);
+  console.log(process.env.ANTHROPIC_API_KEY
+    ? `  MiMata IA: Claude real (${process.env.ANTHROPIC_MODEL || 'claude-opus-5-5'}); cada foto consume saldo`
+    : '  MiMata IA: ficha de ejemplo (sin ANTHROPIC_API_KEY en mimata/.env.local ni mimata/.env)');
 });

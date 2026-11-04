@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MiMata">
+  <defs>
+    <linearGradient id="mm-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22a35a"/>
+      <stop offset="1" stop-color="#0f5c32"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="url(#mm-bg)"/>
+  <circle cx="148" cy="140" r="34" fill="#f5b52e"/>
+  <path d="M256 320V226" stroke="#dff5e3" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="256" cy="220" r="11" fill="#dff5e3"/>
+  <path d="M256 274C214 278 178 252 168 204C214 200 250 228 256 274Z" fill="#dff5e3"/>
+  <path d="M256 242C262 196 300 162 352 156C350 206 312 240 256 242Z" fill="#c6ecd0"/>
+  <rect x="168" y="318" width="176" height="26" rx="8" fill="#d98c4a"/>
+  <path d="M184 344H328L312 430L304 440H208L200 430Z" fill="#b9652f"/>
+</svg>

@@ -1,0 +1,21 @@
+{
+  "name": "MiMata — Conocé tus matas",
+  "short_name": "MiMata",
+  "description": "Identificá tus plantas con una foto y aprendé a cuidarlas, pensado para el clima de El Salvador.",
+  "lang": "es-SV",
+  "dir": "ltr",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f7ef",
+  "theme_color": "#1a7f45",
+  "categories": ["lifestyle", "education", "utilities"],
+  "icons": [
+    { "src": "./assets/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
